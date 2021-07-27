@@ -1,0 +1,12 @@
+name: nakama-node-1
+
+logger:
+  level: "DEBUG"
+
+runtime:
+  js_entrypoint: "build/index.js"
+
+console:
+  port: 7351
+  username: "admin"
+  password: "password"
