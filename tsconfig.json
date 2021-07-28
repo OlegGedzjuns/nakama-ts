@@ -1,5 +1,5 @@
 {
-  "files": ["./src/main.ts", "./src/healthcheck.ts"],
+  "include": ["src/**/*"],
   "compilerOptions": {
     /* Visit https://aka.ms/tsconfig.json to read more about this file */
 

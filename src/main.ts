@@ -4,6 +4,15 @@ let InitModule: nkruntime.InitModule = function (
   nk: nkruntime.Nakama,
   initializer: nkruntime.Initializer
 ) {
-  initializer.registerRpc("healthcheck", rpcHealthcheck);
-  logger.info("Hello World!");
+  // Register the match handler
+  initializer.registerMatch("test-match", {
+    matchInit,
+    matchJoinAttempt,
+    matchJoin,
+    matchLoop,
+    matchLeave,
+    matchTerminate,
+  });
+
+  initializer.registerRpc("createMatch", rpcCreateMatch);
 };

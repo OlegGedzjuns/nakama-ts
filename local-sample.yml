@@ -1,4 +1,4 @@
-name: nakama-node-1
+name: nakama-ts
 
 logger:
   level: "DEBUG"
