@@ -4,15 +4,14 @@ let InitModule: nkruntime.InitModule = function (
   nk: nkruntime.Nakama,
   initializer: nkruntime.Initializer
 ) {
-  // Register the match handler
-  initializer.registerMatch("test-match", {
-    matchInit,
-    matchJoinAttempt,
-    matchJoin,
-    matchLoop,
-    matchLeave,
-    matchTerminate,
+  initializer.registerMatch('game-match', {
+    matchInit: gameMatchInit,
+    matchJoinAttempt: gameMatchJoinAttempt,
+    matchJoin: gameMatchJoin,
+    matchLeave: gameMatchLeave,
+    matchLoop: gameMatchLoop,
+    matchTerminate: gameMatchTerminate,
   });
 
-  initializer.registerRpc("createMatch", rpcCreateMatch);
+  initializer.registerRpc('createMatch', rpcCreateMatch);
 };
