@@ -6,11 +6,12 @@ const gameMatchInit = (
 ): { state: nkruntime.MatchState; tickRate: number; label: string } => {
     logger.info(`Init match with params ${JSON.stringify(params)}`);
 
+    const level = gameMatchLoadLevel(nk, params.levelId);
     const players: Player[] = [];
     const lastActiveTick: number = 0;
 
     return {
-        state: { players, lastActiveTick },
+        state: { level, players, lastActiveTick },
         tickRate: parseInt(params.tickRate),
         label: params.label,
     };
@@ -61,7 +62,7 @@ const gameMatchJoin = (
         dispatcher.broadcastMessage(MESSAGE_TYPES.PLAYER_JOINED, JSON.stringify(player), null, null, true);
 
         const initialState = {
-            scene: gameMatchScene,
+            level: state.level,
         };
 
         dispatcher.broadcastMessage(MESSAGE_TYPES.LEVEL_DATA, JSON.stringify(initialState), [p], null, true);

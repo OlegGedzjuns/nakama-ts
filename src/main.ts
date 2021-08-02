@@ -14,4 +14,7 @@ let InitModule: nkruntime.InitModule = function (
     });
 
     initializer.registerRpc('createMatch', rpcCreateMatch);
+
+    initializer.registerRpc('saveLevel', rpcSaveLevel);
+    initializer.registerRpc('listLevels', rpcListLevels);
 };
