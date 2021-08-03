@@ -5,8 +5,7 @@ function rpcSaveLevel(context: nkruntime.Context, logger: nkruntime.Logger, nk: 
         {
             collection: 'levels',
             key: payloadObject.key,
-            // https://github.com/heroiclabs/nakama/issues/657
-            userId: '00000000-0000-0000-0000-000000000000',
+            userId: SYSTEM_USER_ID,
             value: payloadObject.level,
             permissionRead: 2,
         },

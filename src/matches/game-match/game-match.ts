@@ -6,12 +6,13 @@ const gameMatchInit = (
 ): { state: nkruntime.MatchState; tickRate: number; label: string } => {
     logger.info(`Init match with params ${JSON.stringify(params)}`);
 
-    const level = gameMatchLoadLevel(nk, params.levelId);
+    const level = GameMatchHandler.loadLevel(nk, params.levelId);
+    const networkIdentities = GameMatchHandler.getNetworkIdentities(level);
     const players: Player[] = [];
     const lastActiveTick: number = 0;
 
     return {
-        state: { level, players, lastActiveTick },
+        state: { level, networkIdentities, players, lastActiveTick },
         tickRate: parseInt(params.tickRate),
         label: params.label,
     };
@@ -29,7 +30,7 @@ const gameMatchJoinAttempt = (
 ): { state: nkruntime.MatchState; accept: boolean; rejectMessage?: string | undefined } | null => {
     logger.debug(`${presence.username} attempted to join ${ctx.matchLabel} on ${tick} tick, userId: ${presence.userId}`);
 
-    const rejectMessage = gameMatchValidateUsername(presence.username);
+    const rejectMessage = GameMatchHandler.validateUsername(presence.username);
 
     if (rejectMessage) {
         return {
@@ -63,9 +64,10 @@ const gameMatchJoin = (
 
         const initialState = {
             level: state.level,
+            networkIdentities: state.networkIdentities,
         };
 
-        dispatcher.broadcastMessage(MESSAGE_TYPES.LEVEL_DATA, JSON.stringify(initialState), [p], null, true);
+        dispatcher.broadcastMessage(MESSAGE_TYPES.INITIAL_STATE, JSON.stringify(initialState), [p], null, true);
     });
 
     return {
@@ -86,7 +88,7 @@ const gameMatchLeave = (
         logger.debug(`${pr.username} left ${ctx.matchLabel} on ${tick} tick, userId: ${pr.userId}`);
 
         state.players = state.players.filter((pl: Player) => pl.presence.userId !== pr.userId);
-        dispatcher.broadcastMessage(MESSAGE_TYPES.PLAYER_LEFT, JSON.stringify(pr.userId), null, null, true);
+        dispatcher.broadcastMessage(MESSAGE_TYPES.PLAYER_LEFT, JSON.stringify(pr.username), null, null, true);
     });
 
     return {
@@ -110,8 +112,15 @@ const gameMatchLoop = (
 
     state.lastActiveTick = state.players.length ? tick : state.lastActiveTick;
 
-    if (gameMatchShouldStop(tick, state.lastActiveTick, ctx.matchTickRate)) {
+    if (GameMatchHandler.shouldStop(tick, state.lastActiveTick, ctx.matchTickRate)) {
         return null;
+    }
+
+    state.networkIdentities = GameMatchHandler.handleNetworkIdentitiesChanges(state.networkIdentities);
+    let networkIdentitiesToSync = GameMatchHandler.getNetworkIdentitiesToSync(tick, state.networkIdentities);
+
+    if (!isEmptyObject(networkIdentitiesToSync)) {
+        dispatcher.broadcastMessage(MESSAGE_TYPES.STATE_UPDATE, JSON.stringify(networkIdentitiesToSync), null, null);
     }
 
     return {
