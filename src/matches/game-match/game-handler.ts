@@ -1,4 +1,4 @@
-class GameMatchHandler {
+class GameHandler {
     static readonly SECONDS_WITHOUT_PLAYERS = 60;
 
     public static initializeLevel(nk: nkruntime.Nakama, levelId: string): [{}, NetworkIdentity[]] {

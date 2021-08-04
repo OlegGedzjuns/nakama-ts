@@ -1,23 +1,22 @@
-const gameMatchInit = (
+const lobbyInit = (
     ctx: nkruntime.Context,
     logger: nkruntime.Logger,
     nk: nkruntime.Nakama,
     params: { [key: string]: string }
 ): { state: nkruntime.MatchState; tickRate: number; label: string } => {
-    logger.info(`Init match with params ${JSON.stringify(params)}`);
+    logger.info(`Init lobby with params ${JSON.stringify(params)}`);
 
-    const [level, networkIdentities] = GameMatchHandler.initializeLevel(nk, params.levelId);
     const players: Player[] = [];
     const lastActiveTick: number = 0;
 
     return {
-        state: { level, networkIdentities, players, lastActiveTick },
+        state: { players, lastActiveTick },
         tickRate: parseInt(params.tickRate),
         label: params.label,
     };
 };
 
-const gameMatchJoinAttempt = (
+const lobbyJoinAttempt = (
     ctx: nkruntime.Context,
     logger: nkruntime.Logger,
     nk: nkruntime.Nakama,
@@ -29,23 +28,13 @@ const gameMatchJoinAttempt = (
 ): { state: nkruntime.MatchState; accept: boolean; rejectMessage?: string | undefined } | null => {
     logger.debug(`${presence.username} attempted to join ${ctx.matchLabel} on ${tick} tick, userId: ${presence.userId}`);
 
-    const rejectMessage = GameMatchHandler.validateUsername(presence.username);
-
-    if (rejectMessage) {
-        return {
-            state,
-            accept: false,
-            rejectMessage,
-        };
-    }
-
     return {
         state,
         accept: true,
     };
 };
 
-const gameMatchJoin = (
+const lobbyJoin = (
     ctx: nkruntime.Context,
     logger: nkruntime.Logger,
     nk: nkruntime.Nakama,
@@ -60,13 +49,6 @@ const gameMatchJoin = (
         const player = new Player(p);
         state.players.push(player);
         dispatcher.broadcastMessage(MESSAGE_TYPES.PLAYER_JOINED, JSON.stringify(player), null, null, true);
-
-        const initialState = {
-            level: state.level,
-            networkIdentities: state.networkIdentities,
-        };
-
-        dispatcher.broadcastMessage(MESSAGE_TYPES.INITIAL_STATE, JSON.stringify(initialState), [p], null, true);
     });
 
     return {
@@ -74,7 +56,7 @@ const gameMatchJoin = (
     };
 };
 
-const gameMatchLeave = (
+const lobbyLeave = (
     ctx: nkruntime.Context,
     logger: nkruntime.Logger,
     nk: nkruntime.Nakama,
@@ -95,7 +77,7 @@ const gameMatchLeave = (
     };
 };
 
-const gameMatchLoop = (
+const lobbyLoop = (
     ctx: nkruntime.Context,
     logger: nkruntime.Logger,
     nk: nkruntime.Nakama,
@@ -104,22 +86,10 @@ const gameMatchLoop = (
     state: nkruntime.MatchState,
     messages: nkruntime.MatchMessage[]
 ): { state: nkruntime.MatchState } | null => {
-    messages.forEach((m) => {
-        logger.info(`Received ${m.data} from ${m.sender.userId}`);
-        dispatcher.broadcastMessage(MESSAGE_TYPES.PLAYER_MESSAGE, m.data, null, m.sender);
-    });
-
     state.lastActiveTick = state.players.length ? tick : state.lastActiveTick;
 
-    if (GameMatchHandler.shouldStop(tick, state.lastActiveTick, ctx.matchTickRate)) {
+    if (LobbyHandler.shouldStop(tick, state.lastActiveTick, ctx.matchTickRate)) {
         return null;
-    }
-
-    state.networkIdentities = GameMatchHandler.handleNetworkIdentitiesChanges(state.networkIdentities);
-    let networkIdentitiesToSync = GameMatchHandler.getNetworkIdentitiesToSync(tick, state.networkIdentities);
-
-    if (networkIdentitiesToSync.length) {
-        dispatcher.broadcastMessage(MESSAGE_TYPES.STATE_UPDATE, JSON.stringify(networkIdentitiesToSync), null, null);
     }
 
     return {
@@ -127,7 +97,7 @@ const gameMatchLoop = (
     };
 };
 
-const gameMatchTerminate = (
+const lobbyTerminate = (
     ctx: nkruntime.Context,
     logger: nkruntime.Logger,
     nk: nkruntime.Nakama,
