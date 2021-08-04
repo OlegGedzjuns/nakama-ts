@@ -6,8 +6,7 @@ const gameMatchInit = (
 ): { state: nkruntime.MatchState; tickRate: number; label: string } => {
     logger.info(`Init match with params ${JSON.stringify(params)}`);
 
-    const level = GameMatchHandler.loadLevel(nk, params.levelId);
-    const networkIdentities = GameMatchHandler.getNetworkIdentities(level);
+    const [level, networkIdentities] = GameMatchHandler.initializeLevel(nk, params.levelId);
     const players: Player[] = [];
     const lastActiveTick: number = 0;
 
@@ -119,7 +118,7 @@ const gameMatchLoop = (
     state.networkIdentities = GameMatchHandler.handleNetworkIdentitiesChanges(state.networkIdentities);
     let networkIdentitiesToSync = GameMatchHandler.getNetworkIdentitiesToSync(tick, state.networkIdentities);
 
-    if (!isEmptyObject(networkIdentitiesToSync)) {
+    if (networkIdentitiesToSync.length) {
         dispatcher.broadcastMessage(MESSAGE_TYPES.STATE_UPDATE, JSON.stringify(networkIdentitiesToSync), null, null);
     }
 

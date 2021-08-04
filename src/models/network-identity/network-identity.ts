@@ -1,9 +1,11 @@
 class NetworkIdentity {
-    data: NetworkIdentityData;
-
+    networkId: number;
     syncInterval: number;
 
-    constructor(syncInterval:number = 1, data: NetworkIdentityData = new NetworkIdentityData()) {
+    data: NetworkIdentityData;
+
+    constructor(networkId: number, syncInterval:number = 1, data: NetworkIdentityData = new NetworkIdentityData()) {
+        this.networkId = networkId;
         this.syncInterval = syncInterval;
         
         this.data = data;
