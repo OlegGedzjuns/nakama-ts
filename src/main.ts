@@ -3,7 +3,7 @@ let InitModule: nkruntime.InitModule = function (
     logger: nkruntime.Logger,
     nk: nkruntime.Nakama,
     initializer: nkruntime.Initializer
-    ) {
+) {
     initializer.registerMatch('lobby', {
         matchInit: lobbyInit,
         matchJoinAttempt: lobbyJoinAttempt,
@@ -25,5 +25,7 @@ let InitModule: nkruntime.InitModule = function (
     initializer.registerRpc('createMatch', rpcCreateMatch);
 
     initializer.registerRpc('saveLevel', rpcSaveLevel);
-    initializer.registerRpc('listLevels', rpcListLevels);
+    initializer.registerRpc('getLevels', rpGetLevels);
+
+    initializer.registerRpc('lobbyInvite', rpcLobbyInvite);
 };

@@ -20,13 +20,13 @@ function rpcSaveLevel(context: nkruntime.Context, logger: nkruntime.Logger, nk: 
     }
 }
 
-function rpcListLevels(context: nkruntime.Context, logger: nkruntime.Logger, nk: nkruntime.Nakama, payload: string): string {
+function rpGetLevels(context: nkruntime.Context, logger: nkruntime.Logger, nk: nkruntime.Nakama, payload: string): string {
     const userId = null;
     const collection = 'levels';
 
     const response = nk.storageList(userId, collection);
 
-    const levels = response.objects ?? [];
+    const levels = (response.objects ?? []).map((l) => ({ id: l.key, name: l.value.name, createdAt: l.createTime, updatedAt: l.updateTime }));
 
     return JSON.stringify(levels);
 }

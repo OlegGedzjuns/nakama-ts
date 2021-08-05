@@ -7,5 +7,14 @@ const MESSAGE_TYPES = {
     STATE_UPDATE: 6,
 };
 
+const NOTIFICATION_TYPES = {
+    LOBBY_INVITE: 1,
+};
+
+const ERROR_TYPES = {
+    LOBBY_FULL: 1,
+    WRONG_PARAMS: 2,
+};
+
 // https://github.com/heroiclabs/nakama/issues/657
 const SYSTEM_USER_ID = '00000000-0000-0000-0000-000000000000';

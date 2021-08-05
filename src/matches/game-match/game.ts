@@ -59,7 +59,7 @@ const gameJoin = (
 
         const player = new Player(p);
         state.players.push(player);
-        dispatcher.broadcastMessage(MESSAGE_TYPES.PLAYER_JOINED, JSON.stringify(player), null, null, true);
+        dispatcher.broadcastMessage(MESSAGE_TYPES.PLAYER_JOINED, JSON.stringify(player.presence), null, null, true);
 
         const initialState = {
             level: state.level,
@@ -87,7 +87,7 @@ const gameLeave = (
         logger.debug(`${pr.username} left ${ctx.matchLabel} on ${tick} tick, userId: ${pr.userId}`);
 
         state.players = state.players.filter((pl: Player) => pl.presence.userId !== pr.userId);
-        dispatcher.broadcastMessage(MESSAGE_TYPES.PLAYER_LEFT, JSON.stringify(pr.username), null, null, true);
+        dispatcher.broadcastMessage(MESSAGE_TYPES.PLAYER_LEFT, JSON.stringify(pr), null, null, true);
     });
 
     return {

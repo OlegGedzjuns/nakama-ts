@@ -2,15 +2,12 @@ const lobbyInit = (
     ctx: nkruntime.Context,
     logger: nkruntime.Logger,
     nk: nkruntime.Nakama,
-    params: { [key: string]: string }
+    params: { [key: string]: any }
 ): { state: nkruntime.MatchState; tickRate: number; label: string } => {
-    logger.info(`Init lobby with params ${JSON.stringify(params)}`);
-
-    const players: Player[] = [];
-    const lastActiveTick: number = 0;
+    logger.info(`Init lobby with params: ${JSON.stringify(params)}`);
 
     return {
-        state: { players, lastActiveTick },
+        state: LobbyHandler.initState(params),
         tickRate: parseInt(params.tickRate),
         label: params.label,
     };
@@ -27,6 +24,16 @@ const lobbyJoinAttempt = (
     metadata: { [key: string]: any }
 ): { state: nkruntime.MatchState; accept: boolean; rejectMessage?: string | undefined } | null => {
     logger.debug(`${presence.username} attempted to join ${ctx.matchLabel} on ${tick} tick, userId: ${presence.userId}`);
+
+    const error: NakamaError | null = LobbyHandler.validateJoinAttempt(state, presence);
+
+    if (error) {
+        return {
+            state,
+            accept: false,
+            rejectMessage: error.toString(),
+        };
+    }
 
     return {
         state,
@@ -48,7 +55,13 @@ const lobbyJoin = (
 
         const player = new Player(p);
         state.players.push(player);
-        dispatcher.broadcastMessage(MESSAGE_TYPES.PLAYER_JOINED, JSON.stringify(player), null, null, true);
+        dispatcher.broadcastMessage(MESSAGE_TYPES.PLAYER_JOINED, JSON.stringify(player.presence), null, null, true);
+
+        const initialState = {
+            players: state.players,
+        };
+    
+        dispatcher.broadcastMessage(MESSAGE_TYPES.INITIAL_STATE, JSON.stringify(initialState), [p], null, true);
     });
 
     return {
@@ -69,7 +82,7 @@ const lobbyLeave = (
         logger.debug(`${pr.username} left ${ctx.matchLabel} on ${tick} tick, userId: ${pr.userId}`);
 
         state.players = state.players.filter((pl: Player) => pl.presence.userId !== pr.userId);
-        dispatcher.broadcastMessage(MESSAGE_TYPES.PLAYER_LEFT, JSON.stringify(pr.username), null, null, true);
+        dispatcher.broadcastMessage(MESSAGE_TYPES.PLAYER_LEFT, JSON.stringify(pr), null, null, true);
     });
 
     return {
@@ -88,7 +101,7 @@ const lobbyLoop = (
 ): { state: nkruntime.MatchState } | null => {
     state.lastActiveTick = state.players.length ? tick : state.lastActiveTick;
 
-    if (LobbyHandler.shouldStop(tick, state.lastActiveTick, ctx.matchTickRate)) {
+    if (LobbyHandler.shouldStop(tick, ctx.matchTickRate, state.lastActiveTick)) {
         return null;
     }
 
