@@ -1,6 +1,7 @@
 class LobbyHandler {
     static readonly SECONDS_WITHOUT_PLAYERS = 10;
-    static readonly DEFAULT_MAX_PLAYERS = 5;
+    static readonly DEFAULT_MAX_PLAYERS = 3;
+    static readonly TICK_RATE = 1;
 
     static initState(params: { [key: string]: any }) {
         const isPrivate: boolean = !!params.isPrivate ?? false;

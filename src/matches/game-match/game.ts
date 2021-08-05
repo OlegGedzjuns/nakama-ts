@@ -12,7 +12,7 @@ const gameInit = (
 
     return {
         state: { level, networkIdentities, players, lastActiveTick },
-        tickRate: parseInt(params.tickRate),
+        tickRate: GameHandler.TICK_RATE,
         label: params.label,
     };
 };

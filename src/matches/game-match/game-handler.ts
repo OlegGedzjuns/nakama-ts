@@ -1,5 +1,6 @@
 class GameHandler {
     static readonly SECONDS_WITHOUT_PLAYERS = 60;
+    static readonly TICK_RATE = 10;
 
     public static initializeLevel(nk: nkruntime.Nakama, levelId: string): [{}, NetworkIdentity[]] {
         let rawLevel = this.loadLevel(nk, levelId);

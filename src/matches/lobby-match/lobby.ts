@@ -8,7 +8,7 @@ const lobbyInit = (
 
     return {
         state: LobbyHandler.initState(params),
-        tickRate: parseInt(params.tickRate),
+        tickRate: LobbyHandler.TICK_RATE,
         label: params.label,
     };
 };
@@ -53,15 +53,15 @@ const lobbyJoin = (
     presences.forEach((p: nkruntime.Presence) => {
         logger.debug(`${p.username} joined ${ctx.matchLabel} on ${tick} tick, userId: ${p.userId}`);
 
-        const player = new Player(p);
-        state.players.push(player);
-        dispatcher.broadcastMessage(MESSAGE_TYPES.PLAYER_JOINED, JSON.stringify(player.presence), null, null, true);
-
         const initialState = {
             players: state.players,
         };
-    
-        dispatcher.broadcastMessage(MESSAGE_TYPES.INITIAL_STATE, JSON.stringify(initialState), [p], null, true);
+
+        dispatcher.broadcastMessage(MESSAGE_TYPES.LOBBY_INITIAL_STATE, JSON.stringify(initialState), [p], null, true);
+
+        const player = new Player(p);
+        state.players.push(player);
+        dispatcher.broadcastMessage(MESSAGE_TYPES.LOBBY_JOINED, JSON.stringify(player.presence), null, null, true);
     });
 
     return {
@@ -82,7 +82,7 @@ const lobbyLeave = (
         logger.debug(`${pr.username} left ${ctx.matchLabel} on ${tick} tick, userId: ${pr.userId}`);
 
         state.players = state.players.filter((pl: Player) => pl.presence.userId !== pr.userId);
-        dispatcher.broadcastMessage(MESSAGE_TYPES.PLAYER_LEFT, JSON.stringify(pr), null, null, true);
+        dispatcher.broadcastMessage(MESSAGE_TYPES.LOBBY_LEFT, JSON.stringify(pr), null, null, true);
     });
 
     return {
@@ -120,9 +120,6 @@ const lobbyTerminate = (
     graceSeconds: number
 ): { state: nkruntime.MatchState } | null => {
     logger.debug(`${ctx.matchLabel} terminated on ${tick} tick`);
-
-    const message = `Server shutting down in ${graceSeconds} seconds.`;
-    dispatcher.broadcastMessage(MESSAGE_TYPES.MATCH_TERMINATED, message, null, null, true);
 
     return {
         state,
