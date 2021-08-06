@@ -6,10 +6,11 @@ class LobbyHandler {
     static initState(params: { [key: string]: any }) {
         const isPrivate: boolean = !!params.isPrivate ?? false;
         const maxPlayers: number = params.maxPlayers ?? this.DEFAULT_MAX_PLAYERS;
+        const selectedLevel: string | null = null;
         const players: Player[] = [];
         const lastActiveTick: number = 0;
 
-        return { isPrivate, maxPlayers, players, lastActiveTick };
+        return { isPrivate, maxPlayers, selectedLevel, players, lastActiveTick };
     }
 
     static validateJoinAttempt(state: nkruntime.MatchState, presensce: nkruntime.Presence): NakamaError | null {
@@ -18,6 +19,33 @@ class LobbyHandler {
         }
 
         return null;
+    }
+
+    static handlePlayerMessage(
+        logger: nkruntime.Logger,
+        dispatcher: nkruntime.MatchDispatcher,
+        state: nkruntime.MatchState,
+        message: nkruntime.MatchMessage
+    ): nkruntime.MatchState {
+        for (let k of Object.keys(CLIENT_MESSAGES)) {
+            if (CLIENT_MESSAGES[k].code == message.opCode) {
+                return CLIENT_MESSAGES[k].action({ logger, dispatcher, state, message });
+            }
+        }
+
+        logger.warn('Cannot find player message action with code: ', message.opCode);
+
+        return state;
+    }
+
+    static setLevel(data: PlayerActionParams): nkruntime.MatchState {
+        const messageObject = JSON.parse(data.message.data);
+
+        data.state.selectedLevel = messageObject.levelId;
+
+        data.dispatcher.broadcastMessage(SERVER_MESSAGES.LOBBY_STATE_UPDATE, JSON.stringify({ selectedLevel: data.state.selectedLevel }), null, null, true);
+
+        return data.state;
     }
 
     static shouldStop(tick: number, tickRate: number, lastTickWithPlayers: number): boolean {

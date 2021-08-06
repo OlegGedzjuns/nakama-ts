@@ -1,7 +1,8 @@
-const MESSAGE_TYPES = {
+const SERVER_MESSAGES = {
     LOBBY_JOINED: 1,
     LOBBY_LEFT: 2,
     LOBBY_INITIAL_STATE: 3,
+    LOBBY_STATE_UPDATE: 4,
 
     PLAYER_JOINED: 101,
     INITIAL_STATE: 102,
@@ -9,6 +10,10 @@ const MESSAGE_TYPES = {
     PLAYER_MESSAGE: 104,
     MATCH_TERMINATED: 105,
     STATE_UPDATE: 106,
+};
+
+const CLIENT_MESSAGES: { [key: string]: { code: number, action: PlayerActionFunction } } = {
+    LOBBY_SET_LEVEL: { code: 1, action: (data: PlayerActionParams) => LobbyHandler.setLevel(data) },
 };
 
 const NOTIFICATION_TYPES = {

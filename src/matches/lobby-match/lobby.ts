@@ -55,13 +55,14 @@ const lobbyJoin = (
 
         const initialState = {
             players: state.players,
+            selectedLevel: state.selectedLevel,
         };
 
-        dispatcher.broadcastMessage(MESSAGE_TYPES.LOBBY_INITIAL_STATE, JSON.stringify(initialState), [p], null, true);
+        dispatcher.broadcastMessage(SERVER_MESSAGES.LOBBY_INITIAL_STATE, JSON.stringify(initialState), [p], null, true);
 
         const player = new Player(p);
         state.players.push(player);
-        dispatcher.broadcastMessage(MESSAGE_TYPES.LOBBY_JOINED, JSON.stringify(player.presence), null, null, true);
+        dispatcher.broadcastMessage(SERVER_MESSAGES.LOBBY_JOINED, JSON.stringify(player.presence), null, null, true);
     });
 
     return {
@@ -82,7 +83,7 @@ const lobbyLeave = (
         logger.debug(`${pr.username} left ${ctx.matchLabel} on ${tick} tick, userId: ${pr.userId}`);
 
         state.players = state.players.filter((pl: Player) => pl.presence.userId !== pr.userId);
-        dispatcher.broadcastMessage(MESSAGE_TYPES.LOBBY_LEFT, JSON.stringify(pr), null, null, true);
+        dispatcher.broadcastMessage(SERVER_MESSAGES.LOBBY_LEFT, JSON.stringify(pr), null, null, true);
     });
 
     return {
@@ -104,6 +105,12 @@ const lobbyLoop = (
     if (LobbyHandler.shouldStop(tick, ctx.matchTickRate, state.lastActiveTick)) {
         return null;
     }
+
+    messages.forEach((m) => {
+        logger.info(`Received ${m.data} from ${m.sender.userId}`);
+
+        state = LobbyHandler.handlePlayerMessage(logger, dispatcher, state, m);
+    });
 
     return {
         state,

@@ -59,14 +59,14 @@ const gameJoin = (
 
         const player = new Player(p);
         state.players.push(player);
-        dispatcher.broadcastMessage(MESSAGE_TYPES.PLAYER_JOINED, JSON.stringify(player.presence), null, null, true);
+        dispatcher.broadcastMessage(SERVER_MESSAGES.PLAYER_JOINED, JSON.stringify(player.presence), null, null, true);
 
         const initialState = {
             level: state.level,
             networkIdentities: state.networkIdentities,
         };
 
-        dispatcher.broadcastMessage(MESSAGE_TYPES.INITIAL_STATE, JSON.stringify(initialState), [p], null, true);
+        dispatcher.broadcastMessage(SERVER_MESSAGES.INITIAL_STATE, JSON.stringify(initialState), [p], null, true);
     });
 
     return {
@@ -87,7 +87,7 @@ const gameLeave = (
         logger.debug(`${pr.username} left ${ctx.matchLabel} on ${tick} tick, userId: ${pr.userId}`);
 
         state.players = state.players.filter((pl: Player) => pl.presence.userId !== pr.userId);
-        dispatcher.broadcastMessage(MESSAGE_TYPES.PLAYER_LEFT, JSON.stringify(pr), null, null, true);
+        dispatcher.broadcastMessage(SERVER_MESSAGES.PLAYER_LEFT, JSON.stringify(pr), null, null, true);
     });
 
     return {
@@ -105,8 +105,8 @@ const gameLoop = (
     messages: nkruntime.MatchMessage[]
 ): { state: nkruntime.MatchState } | null => {
     messages.forEach((m) => {
-        logger.info(`Received ${m.data} from ${m.sender.userId}`);
-        dispatcher.broadcastMessage(MESSAGE_TYPES.PLAYER_MESSAGE, m.data, null, m.sender);
+        logger.info(`Received ${m.data} from ${m.sender.userId} with code ${m.opCode}`);
+        dispatcher.broadcastMessage(SERVER_MESSAGES.PLAYER_MESSAGE, m.data, null, m.sender);
     });
 
     state.lastActiveTick = state.players.length ? tick : state.lastActiveTick;
@@ -119,7 +119,7 @@ const gameLoop = (
     let networkIdentitiesToSync = GameHandler.getNetworkIdentitiesToSync(tick, state.networkIdentities);
 
     if (networkIdentitiesToSync.length) {
-        dispatcher.broadcastMessage(MESSAGE_TYPES.STATE_UPDATE, JSON.stringify(networkIdentitiesToSync), null, null);
+        dispatcher.broadcastMessage(SERVER_MESSAGES.STATE_UPDATE, JSON.stringify(networkIdentitiesToSync), null, null);
     }
 
     return {
@@ -139,7 +139,7 @@ const gameTerminate = (
     logger.debug(`${ctx.matchLabel} terminated on ${tick} tick`);
 
     const message = `Server shutting down in ${graceSeconds} seconds.`;
-    dispatcher.broadcastMessage(MESSAGE_TYPES.MATCH_TERMINATED, message, null, null, true);
+    dispatcher.broadcastMessage(SERVER_MESSAGES.MATCH_TERMINATED, message, null, null, true);
 
     return {
         state,
