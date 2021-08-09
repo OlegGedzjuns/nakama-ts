@@ -1,8 +1,14 @@
+const MATCH_TYPES = {
+    LOBBY: 'lobby',
+    GAME: 'game',
+};
+
 const SERVER_MESSAGES = {
     LOBBY_JOINED: 1,
     LOBBY_LEFT: 2,
     LOBBY_INITIAL_STATE: 3,
     LOBBY_STATE_UPDATE: 4,
+    LOBBY_GAME_STARTED: 5,
 
     PLAYER_JOINED: 101,
     INITIAL_STATE: 102,
@@ -14,6 +20,7 @@ const SERVER_MESSAGES = {
 
 const CLIENT_MESSAGES: { [key: string]: { code: number, action: PlayerActionFunction } } = {
     LOBBY_SET_LEVEL: { code: 1, action: (data: PlayerActionParams) => LobbyHandler.setLevel(data) },
+    LOBBY_START_GAME: { code: 2, action: (data: PlayerActionParams) => LobbyHandler.startMatch(data) },
 };
 
 const NOTIFICATION_TYPES = {

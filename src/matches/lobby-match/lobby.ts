@@ -56,6 +56,7 @@ const lobbyJoin = (
         const initialState = {
             players: state.players,
             selectedLevel: state.selectedLevel,
+            gameId: state.gameId,
         };
 
         dispatcher.broadcastMessage(SERVER_MESSAGES.LOBBY_INITIAL_STATE, JSON.stringify(initialState), [p], null, true);
@@ -109,7 +110,7 @@ const lobbyLoop = (
     messages.forEach((m) => {
         logger.info(`Received ${m.data} from ${m.sender.userId}`);
 
-        state = LobbyHandler.handlePlayerMessage(logger, dispatcher, state, m);
+        state = LobbyHandler.handlePlayerMessage(logger, nk, dispatcher, state, m);
     });
 
     return {

@@ -7,10 +7,11 @@ class LobbyHandler {
         const isPrivate: boolean = !!params.isPrivate ?? false;
         const maxPlayers: number = params.maxPlayers ?? this.DEFAULT_MAX_PLAYERS;
         const selectedLevel: string | null = null;
+        const gameId: string | null = null;
         const players: Player[] = [];
         const lastActiveTick: number = 0;
 
-        return { isPrivate, maxPlayers, selectedLevel, players, lastActiveTick };
+        return { isPrivate, maxPlayers, selectedLevel, gameId, players, lastActiveTick };
     }
 
     static validateJoinAttempt(state: nkruntime.MatchState, presensce: nkruntime.Presence): NakamaError | null {
@@ -23,13 +24,14 @@ class LobbyHandler {
 
     static handlePlayerMessage(
         logger: nkruntime.Logger,
+        nk: nkruntime.Nakama,
         dispatcher: nkruntime.MatchDispatcher,
         state: nkruntime.MatchState,
         message: nkruntime.MatchMessage
     ): nkruntime.MatchState {
         for (let k of Object.keys(CLIENT_MESSAGES)) {
             if (CLIENT_MESSAGES[k].code == message.opCode) {
-                return CLIENT_MESSAGES[k].action({ logger, dispatcher, state, message });
+                return CLIENT_MESSAGES[k].action({ logger, nk, dispatcher, state, message });
             }
         }
 
@@ -44,6 +46,18 @@ class LobbyHandler {
         data.state.selectedLevel = messageObject.levelId;
 
         data.dispatcher.broadcastMessage(SERVER_MESSAGES.LOBBY_STATE_UPDATE, JSON.stringify({ selectedLevel: data.state.selectedLevel }), null, null, true);
+
+        return data.state;
+    }
+
+    static startMatch(data: PlayerActionParams): nkruntime.MatchState {
+        const messageObject = JSON.parse(data.message.data);
+
+        data.logger.warn(data.message.data);
+
+        data.state.gameId = data.nk.matchCreate(MATCH_TYPES.GAME, messageObject); 
+
+        data.dispatcher.broadcastMessage(SERVER_MESSAGES.LOBBY_GAME_STARTED, JSON.stringify({ gameId: data.state.gameId }), null, null, true);
 
         return data.state;
     }
