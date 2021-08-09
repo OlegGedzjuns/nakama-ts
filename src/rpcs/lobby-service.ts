@@ -6,8 +6,8 @@ function rpcLobbyInvite(context: nkruntime.Context, logger: nkruntime.Logger, nk
         throw new NakamaError(ERROR_TYPES.WRONG_PARAMS, 'No username provided').toString();
     }
 
-    if (!payloadObject.matchId) {
-        throw new NakamaError(ERROR_TYPES.WRONG_PARAMS, 'No matchId provided').toString();
+    if (!payloadObject.lobbyId) {
+        throw new NakamaError(ERROR_TYPES.WRONG_PARAMS, 'No lobbyId provided').toString();
     }
 
     const users: nkruntime.User[] = nk.usersGetUsername([payloadObject.username]);
@@ -16,7 +16,7 @@ function rpcLobbyInvite(context: nkruntime.Context, logger: nkruntime.Logger, nk
         throw new NakamaError(ERROR_TYPES.WRONG_PARAMS, 'User not found').toString();
     }
 
-    nk.notificationSend(users[0].userId, 'You are invited to lobby', { matchId: payloadObject.matchId }, NOTIFICATION_TYPES.LOBBY_INVITE, context.userId, true);
+    nk.notificationSend(users[0].userId, 'You are invited to lobby', { lobbyId: payloadObject.lobbyId }, NOTIFICATION_TYPES.LOBBY_INVITE, context.userId, true);
 
     return '';
 }
