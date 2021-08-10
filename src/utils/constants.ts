@@ -18,7 +18,7 @@ const SERVER_MESSAGES = {
     STATE_UPDATE: 106,
 };
 
-const CLIENT_MESSAGES: { [key: string]: { code: number, action: PlayerActionFunction } } = {
+const CLIENT_MESSAGES: { [key: string]: { code: number; action: PlayerActionFunction } } = {
     LOBBY_SET_LEVEL: { code: 1, action: (data: PlayerActionParams) => LobbyHandler.setLevel(data) },
     LOBBY_START_GAME: { code: 2, action: (data: PlayerActionParams) => LobbyHandler.startMatch(data) },
 };

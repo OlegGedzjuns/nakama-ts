@@ -16,7 +16,14 @@ function rpcLobbyInvite(context: nkruntime.Context, logger: nkruntime.Logger, nk
         throw new NakamaError(ERROR_TYPES.WRONG_PARAMS, 'User not found').toString();
     }
 
-    nk.notificationSend(users[0].userId, 'You are invited to lobby', { lobbyId: payloadObject.lobbyId }, NOTIFICATION_TYPES.LOBBY_INVITE, context.userId, true);
+    nk.notificationSend(
+        users[0].userId,
+        'You are invited to lobby',
+        { lobbyId: payloadObject.lobbyId },
+        NOTIFICATION_TYPES.LOBBY_INVITE,
+        context.userId,
+        true
+    );
 
     return '';
 }

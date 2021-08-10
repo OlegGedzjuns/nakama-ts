@@ -111,16 +111,14 @@ const gameLoop = (
 
     state.lastActiveTick = state.players.length ? tick : state.lastActiveTick;
 
-    if (GameHandler.shouldStop(tick, state.lastActiveTick, ctx.matchTickRate)) {
+    if (GameHandler.shouldStop(tick, state.lastActiveTick, ctx.matchTickRate))
         return null;
-    }
 
     state.networkIdentities = GameHandler.handleNetworkIdentitiesChanges(state.networkIdentities);
     let networkIdentitiesToSync = GameHandler.getNetworkIdentitiesToSync(tick, state.networkIdentities);
 
-    if (networkIdentitiesToSync.length) {
+    if (networkIdentitiesToSync.length)
         dispatcher.broadcastMessage(SERVER_MESSAGES.STATE_UPDATE, JSON.stringify(networkIdentitiesToSync), null, null);
-    }
 
     return {
         state,
@@ -142,6 +140,6 @@ const gameTerminate = (
     dispatcher.broadcastMessage(SERVER_MESSAGES.MATCH_TERMINATED, message, null, null, true);
 
     return {
-        state,
+        state
     };
 };

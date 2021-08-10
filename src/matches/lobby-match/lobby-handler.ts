@@ -15,9 +15,8 @@ class LobbyHandler {
     }
 
     static validateJoinAttempt(state: nkruntime.MatchState, presensce: nkruntime.Presence): NakamaError | null {
-        if (state.players.length >= state.maxPlayers) {
+        if (state.players.length >= state.maxPlayers)
             return new NakamaError(ERROR_TYPES.LOBBY_FULL, 'Lobby is full');
-        }
 
         return null;
     }
@@ -55,7 +54,7 @@ class LobbyHandler {
 
         data.logger.warn(data.message.data);
 
-        data.state.gameId = data.nk.matchCreate(MATCH_TYPES.GAME, messageObject); 
+        data.state.gameId = data.nk.matchCreate(MATCH_TYPES.GAME, messageObject);
 
         data.dispatcher.broadcastMessage(SERVER_MESSAGES.LOBBY_GAME_STARTED, JSON.stringify({ gameId: data.state.gameId }), null, null, true);
 

@@ -1,4 +1,4 @@
-class NetworkIdentityData { 
+class NetworkIdentityData {
     color: Color;
 
     constructor(color: Color = Color.random()) {
