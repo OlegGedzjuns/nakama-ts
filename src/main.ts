@@ -1,4 +1,4 @@
-import { Application, Vec3 } from "./libs/playcanvas";
+import { Vec3 } from "./libs/playcanvas";
 import { gameInit, gameJoin, gameJoinAttempt, gameLeave, gameLoop, gameTerminate } from "./matches/game-match/game";
 import { lobbyInit, lobbyJoin, lobbyJoinAttempt, lobbyLeave, lobbyLoop, lobbyTerminate } from "./matches/lobby-match/lobby";
 import { rpcLobbyInvite } from "./rpcs/lobby-service";
@@ -11,7 +11,6 @@ let InitModule: nkruntime.InitModule = function (
     nk: nkruntime.Nakama,
     initializer: nkruntime.Initializer
 ) {
-    const app = new Application(null, {});
     const vec = Vec3.ONE.clone();
 
     logger.debug(vec.toString());

@@ -1,3 +1,5 @@
+import { SYSTEM_USER_ID } from "../utils/constants";
+
 export function rpcSaveLevel(context: nkruntime.Context, logger: nkruntime.Logger, nk: nkruntime.Nakama, payload: string): string {
     const payloadObject = JSON.parse(payload);
 
