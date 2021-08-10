@@ -1,4 +1,8 @@
-class GameHandler {
+import { Color } from "../../models/color";
+import { NetworkIdentity } from "../../models/network-identity/network-identity";
+import { SYSTEM_USER_ID } from "../../utils/constants";
+
+export class GameHandler {
     static readonly SECONDS_WITHOUT_PLAYERS = 60;
     static readonly TICK_RATE = 10;
 

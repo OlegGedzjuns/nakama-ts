@@ -1,4 +1,9 @@
-const lobbyInit = (
+import { NakamaError } from "../../models/error";
+import { Player } from "../../models/player";
+import { SERVER_MESSAGES } from "../../utils/constants";
+import { LobbyHandler } from "./lobby-handler";
+
+export const lobbyInit = (
     ctx: nkruntime.Context,
     logger: nkruntime.Logger,
     nk: nkruntime.Nakama,
@@ -13,7 +18,7 @@ const lobbyInit = (
     };
 };
 
-const lobbyJoinAttempt = (
+export const lobbyJoinAttempt = (
     ctx: nkruntime.Context,
     logger: nkruntime.Logger,
     nk: nkruntime.Nakama,
@@ -41,7 +46,7 @@ const lobbyJoinAttempt = (
     };
 };
 
-const lobbyJoin = (
+export const lobbyJoin = (
     ctx: nkruntime.Context,
     logger: nkruntime.Logger,
     nk: nkruntime.Nakama,
@@ -71,7 +76,7 @@ const lobbyJoin = (
     };
 };
 
-const lobbyLeave = (
+export const lobbyLeave = (
     ctx: nkruntime.Context,
     logger: nkruntime.Logger,
     nk: nkruntime.Nakama,
@@ -92,7 +97,7 @@ const lobbyLeave = (
     };
 };
 
-const lobbyLoop = (
+export const lobbyLoop = (
     ctx: nkruntime.Context,
     logger: nkruntime.Logger,
     nk: nkruntime.Nakama,
@@ -118,7 +123,7 @@ const lobbyLoop = (
     };
 };
 
-const lobbyTerminate = (
+export const lobbyTerminate = (
     ctx: nkruntime.Context,
     logger: nkruntime.Logger,
     nk: nkruntime.Nakama,

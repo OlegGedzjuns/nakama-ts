@@ -1,4 +1,4 @@
-class NakamaError {
+export class NakamaError {
     code: number;
     message: string;
 

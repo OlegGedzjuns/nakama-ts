@@ -1,4 +1,8 @@
-const gameInit = (
+import { Player } from "../../models/player";
+import { SERVER_MESSAGES } from "../../utils/constants";
+import { GameHandler } from "./game-handler";
+
+export const gameInit = (
     ctx: nkruntime.Context,
     logger: nkruntime.Logger,
     nk: nkruntime.Nakama,
@@ -17,7 +21,7 @@ const gameInit = (
     };
 };
 
-const gameJoinAttempt = (
+export const gameJoinAttempt = (
     ctx: nkruntime.Context,
     logger: nkruntime.Logger,
     nk: nkruntime.Nakama,
@@ -45,7 +49,7 @@ const gameJoinAttempt = (
     };
 };
 
-const gameJoin = (
+export const gameJoin = (
     ctx: nkruntime.Context,
     logger: nkruntime.Logger,
     nk: nkruntime.Nakama,
@@ -74,7 +78,7 @@ const gameJoin = (
     };
 };
 
-const gameLeave = (
+export const gameLeave = (
     ctx: nkruntime.Context,
     logger: nkruntime.Logger,
     nk: nkruntime.Nakama,
@@ -95,7 +99,7 @@ const gameLeave = (
     };
 };
 
-const gameLoop = (
+export const gameLoop = (
     ctx: nkruntime.Context,
     logger: nkruntime.Logger,
     nk: nkruntime.Nakama,
@@ -125,7 +129,7 @@ const gameLoop = (
     };
 };
 
-const gameTerminate = (
+export const gameTerminate = (
     ctx: nkruntime.Context,
     logger: nkruntime.Logger,
     nk: nkruntime.Nakama,

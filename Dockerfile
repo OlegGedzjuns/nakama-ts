@@ -6,8 +6,10 @@ COPY package*.json .
 RUN npm install
 
 COPY tsconfig.json .
+COPY babel.config.json .
+COPY rollup.config.js .
 COPY /src /backend/src
-RUN npx tsc
+RUN npm run build
 
 FROM heroiclabs/nakama:3.4.0
 

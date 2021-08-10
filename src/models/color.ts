@@ -1,4 +1,4 @@
-class Color {
+export class Color {
     x: number;
     y: number;
     z: number;

@@ -1,4 +1,4 @@
-function rpcSaveLevel(context: nkruntime.Context, logger: nkruntime.Logger, nk: nkruntime.Nakama, payload: string): string {
+export function rpcSaveLevel(context: nkruntime.Context, logger: nkruntime.Logger, nk: nkruntime.Nakama, payload: string): string {
     const payloadObject = JSON.parse(payload);
 
     const levels: nkruntime.StorageWriteRequest[] = [
@@ -20,7 +20,7 @@ function rpcSaveLevel(context: nkruntime.Context, logger: nkruntime.Logger, nk: 
     }
 }
 
-function rpGetLevels(context: nkruntime.Context, logger: nkruntime.Logger, nk: nkruntime.Nakama, payload: string): string {
+export function rpGetLevels(context: nkruntime.Context, logger: nkruntime.Logger, nk: nkruntime.Nakama, payload: string): string {
     const userId = null;
     const collection = 'levels';
 

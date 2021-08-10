@@ -1,15 +1,27 @@
+import { Application, Vec3 } from "./libs/playcanvas";
+import { gameInit, gameJoin, gameJoinAttempt, gameLeave, gameLoop, gameTerminate } from "./matches/game-match/game";
+import { lobbyInit, lobbyJoin, lobbyJoinAttempt, lobbyLeave, lobbyLoop, lobbyTerminate } from "./matches/lobby-match/lobby";
+import { rpcLobbyInvite } from "./rpcs/lobby-service";
+import { rpcCreateMatch } from "./rpcs/match-service";
+import { rpcSaveLevel, rpGetLevels } from "./rpcs/storage-service";
+
 let InitModule: nkruntime.InitModule = function (
     ctx: nkruntime.Context,
     logger: nkruntime.Logger,
     nk: nkruntime.Nakama,
     initializer: nkruntime.Initializer
 ) {
+    const app = new Application(null, {});
+    const vec = Vec3.ONE.clone();
+
+    logger.debug(vec.toString());
+
     initializer.registerMatch('lobby', {
         matchInit: lobbyInit,
         matchJoinAttempt: lobbyJoinAttempt,
         matchJoin: lobbyJoin,
         matchLeave: lobbyLeave,
-        matchLoop: lobbyLoop,
+        matchLoop: lobbyLoop,    
         matchTerminate: lobbyTerminate,
     });
 
@@ -29,3 +41,6 @@ let InitModule: nkruntime.InitModule = function (
 
     initializer.registerRpc('lobbyInvite', rpcLobbyInvite);
 };
+
+// Reference InitModule to avoid it getting removed on build
+!InitModule && InitModule.bind(null);

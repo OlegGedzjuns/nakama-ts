@@ -1,4 +1,7 @@
-function rpcLobbyInvite(context: nkruntime.Context, logger: nkruntime.Logger, nk: nkruntime.Nakama, payload: string): string {
+import { NakamaError } from "../models/error";
+import { ERROR_TYPES, NOTIFICATION_TYPES } from "../utils/constants";
+
+export function rpcLobbyInvite(context: nkruntime.Context, logger: nkruntime.Logger, nk: nkruntime.Nakama, payload: string): string {
     const payloadObject = JSON.parse(payload);
 
     // TODO: eject validation to before hooks

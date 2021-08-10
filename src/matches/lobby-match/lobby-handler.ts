@@ -1,4 +1,4 @@
-class LobbyHandler {
+export class LobbyHandler {
     static readonly SECONDS_WITHOUT_PLAYERS = 10;
     static readonly DEFAULT_MAX_PLAYERS = 3;
     static readonly TICK_RATE = 1;
