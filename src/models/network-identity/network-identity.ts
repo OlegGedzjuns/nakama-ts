@@ -1,4 +1,4 @@
-import { NetworkIdentityData } from "./network-identity-data";
+import { NetworkIdentityData } from './network-identity-data';
 
 export class NetworkIdentity {
     networkId: number;

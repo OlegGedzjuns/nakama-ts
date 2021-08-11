@@ -1,7 +1,8 @@
-import { NakamaError } from "../../models/error";
-import { Player } from "../../models/player";
-import { PlayerActionParams } from "../../models/player-action";
-import { CLIENT_MESSAGES, ERROR_TYPES, MATCH_TYPES, SERVER_MESSAGES } from "../../utils/constants";
+import { NakamaError } from '../../models/error';
+import { Player } from '../../models/player';
+import { PlayerActionParams } from '../../models/player-action';
+
+import { CLIENT_MESSAGES, ERROR_TYPES, MATCH_TYPES, SERVER_MESSAGES } from '../../utils/constants';
 
 export class LobbyHandler {
     static readonly SECONDS_WITHOUT_PLAYERS = 10;
@@ -20,8 +21,7 @@ export class LobbyHandler {
     }
 
     static validateJoinAttempt(state: nkruntime.MatchState, presensce: nkruntime.Presence): NakamaError | null {
-        if (state.players.length >= state.maxPlayers)
-            return new NakamaError(ERROR_TYPES.LOBBY_FULL, 'Lobby is full');
+        if (state.players.length >= state.maxPlayers) return new NakamaError(ERROR_TYPES.LOBBY_FULL, 'Lobby is full');
 
         return null;
     }
@@ -34,9 +34,7 @@ export class LobbyHandler {
         message: nkruntime.MatchMessage
     ): nkruntime.MatchState {
         for (let k of Object.keys(CLIENT_MESSAGES)) {
-            if (CLIENT_MESSAGES[k].code == message.opCode) {
-                return CLIENT_MESSAGES[k].action({ logger, nk, dispatcher, state, message });
-            }
+            if (CLIENT_MESSAGES[k].code == message.opCode) return CLIENT_MESSAGES[k].action({ logger, nk, dispatcher, state, message });
         }
 
         logger.warn('Cannot find player message action with code: ', message.opCode);
@@ -49,12 +47,18 @@ export class LobbyHandler {
 
         data.state.selectedLevel = messageObject.levelId;
 
-        data.dispatcher.broadcastMessage(SERVER_MESSAGES.LOBBY_STATE_UPDATE, JSON.stringify({ selectedLevel: data.state.selectedLevel }), null, null, true);
+        data.dispatcher.broadcastMessage(
+            SERVER_MESSAGES.LOBBY_STATE_UPDATE,
+            JSON.stringify({ selectedLevel: data.state.selectedLevel }),
+            null,
+            null,
+            true
+        );
 
         return data.state;
     }
 
-    static startMatch(data: PlayerActionParams): nkruntime.MatchState {
+    static startGame(data: PlayerActionParams): nkruntime.MatchState {
         const messageObject = JSON.parse(data.message.data);
 
         data.logger.warn(data.message.data);

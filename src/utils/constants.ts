@@ -1,5 +1,6 @@
-import { LobbyHandler } from "../matches/lobby-match/lobby-handler";
-import { PlayerActionFunction, PlayerActionParams } from "../models/player-action";
+import { LobbyHandler } from '../matches/lobby-match/lobby-handler';
+
+import { PlayerActionFunction, PlayerActionParams } from '../models/player-action';
 
 export const MATCH_TYPES = {
     LOBBY: 'lobby',
@@ -23,7 +24,7 @@ export const SERVER_MESSAGES = {
 
 export const CLIENT_MESSAGES: { [key: string]: { code: number; action: PlayerActionFunction } } = {
     LOBBY_SET_LEVEL: { code: 1, action: (data: PlayerActionParams) => LobbyHandler.setLevel(data) },
-    LOBBY_START_GAME: { code: 2, action: (data: PlayerActionParams) => LobbyHandler.startMatch(data) },
+    LOBBY_START_GAME: { code: 2, action: (data: PlayerActionParams) => LobbyHandler.startGame(data) },
 };
 
 export const NOTIFICATION_TYPES = {
@@ -33,7 +34,8 @@ export const NOTIFICATION_TYPES = {
 export const ERROR_TYPES = {
     LOBBY_FULL: 1,
     WRONG_PARAMS: 2,
+    INVALID_USERNAME: 3,
 };
 
 // https://github.com/heroiclabs/nakama/issues/657
-export  const SYSTEM_USER_ID = '00000000-0000-0000-0000-000000000000';
+export const SYSTEM_USER_ID = '00000000-0000-0000-0000-000000000000';

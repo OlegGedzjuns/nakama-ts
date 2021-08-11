@@ -1,4 +1,4 @@
-import { SYSTEM_USER_ID } from "../utils/constants";
+import { SYSTEM_USER_ID } from '../utils/constants';
 
 export function rpcSaveLevel(context: nkruntime.Context, logger: nkruntime.Logger, nk: nkruntime.Nakama, payload: string): string {
     const payloadObject = JSON.parse(payload);
@@ -22,13 +22,13 @@ export function rpcSaveLevel(context: nkruntime.Context, logger: nkruntime.Logge
     }
 }
 
-export function rpGetLevels(context: nkruntime.Context, logger: nkruntime.Logger, nk: nkruntime.Nakama, payload: string): string {
+export function rpcGetLevels(context: nkruntime.Context, logger: nkruntime.Logger, nk: nkruntime.Nakama, payload: string): string {
     const userId = null;
     const collection = 'levels';
 
     const response = nk.storageList(userId, collection);
 
-    const levels = (response.objects ?? []).map((l) => ({ id: l.key, name: l.value.name, createdAt: l.createTime, updatedAt: l.updateTime }));
+    const levels = (response.objects ?? []).map(l => ({ id: l.key, name: l.value.name, createdAt: l.createTime, updatedAt: l.updateTime }));
 
     return JSON.stringify(levels);
 }
