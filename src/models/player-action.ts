@@ -1,8 +1,8 @@
-interface PlayerActionFunction {
+export interface PlayerActionFunction {
     (params: PlayerActionParams): nkruntime.MatchState;
 }
 
-interface PlayerActionParams {
+export interface PlayerActionParams {
     logger: nkruntime.Logger;
     nk: nkruntime.Nakama;
     dispatcher: nkruntime.MatchDispatcher;

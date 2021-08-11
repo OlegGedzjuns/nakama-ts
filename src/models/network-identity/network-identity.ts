@@ -1,4 +1,6 @@
-class NetworkIdentity {
+import { NetworkIdentityData } from './network-identity-data';
+
+export class NetworkIdentity {
     networkId: number;
     syncInterval: number;
 

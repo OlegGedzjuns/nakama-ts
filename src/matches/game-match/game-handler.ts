@@ -1,16 +1,30 @@
-class GameHandler {
+import { Color } from '../../models/color';
+import { NakamaError } from '../../models/error';
+import { NetworkIdentity } from '../../models/network-identity/network-identity';
+import { Player } from '../../models/player';
+
+import { ERROR_TYPES, SYSTEM_USER_ID } from '../../utils/constants';
+
+export class GameHandler {
     static readonly SECONDS_WITHOUT_PLAYERS = 60;
     static readonly TICK_RATE = 10;
 
-    public static initializeLevel(nk: nkruntime.Nakama, levelId: string): [{}, NetworkIdentity[]] {
-        let rawLevel = this.loadLevel(nk, levelId);
-        return this.initializeNetworkIdentities(rawLevel);
+    public static initState(nk: nkruntime.Nakama, params: { [key: string]: any }) {
+        const [level, networkIdentities] = this.initializeLevel(nk, params.levelId);
+        const players: Player[] = [];
+        const lastActiveTick: number = 0;
+
+        return { level, networkIdentities, players, lastActiveTick };
     }
 
-    static validateUsername(username: string): string | void {
-        if (username.toUpperCase().indexOf('O') !== -1) {
-            return 'Invalid username';
-        }
+    public static validateJoinAttempt(state: nkruntime.MatchState, presensce: nkruntime.Presence): NakamaError | null {
+        if (presensce.username.toUpperCase().indexOf('O') !== -1) return new NakamaError(ERROR_TYPES.INVALID_USERNAME, 'Invalid username');
+
+        return null;
+    }
+
+    public static shouldStop(tick: number, lastTickWithPlayers: number, tickRate: number): boolean {
+        return (tick - lastTickWithPlayers) / tickRate >= this.SECONDS_WITHOUT_PLAYERS;
     }
 
     static handleNetworkIdentitiesChanges(networkIdentities: NetworkIdentity[]): NetworkIdentity[] {
@@ -25,9 +39,7 @@ class GameHandler {
         let networkIdentitiesChanges: NetworkIdentity[] = [];
 
         for (let identity of networkIdentities) {
-            if (tick % identity.syncInterval !== 0) {
-                continue;
-            }
+            if (tick % identity.syncInterval !== 0) continue;
 
             networkIdentitiesChanges.push(identity);
         }
@@ -35,8 +47,9 @@ class GameHandler {
         return networkIdentitiesChanges;
     }
 
-    static shouldStop(tick: number, lastTickWithPlayers: number, tickRate: number): boolean {
-        return (tick - lastTickWithPlayers) / tickRate >= this.SECONDS_WITHOUT_PLAYERS;
+    private static initializeLevel(nk: nkruntime.Nakama, levelId: string): [{}, NetworkIdentity[]] {
+        let rawLevel = this.loadLevel(nk, levelId);
+        return this.initializeNetworkIdentities(rawLevel);
     }
 
     private static loadLevel(nk: nkruntime.Nakama, levelId: string): {} {

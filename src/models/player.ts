@@ -1,4 +1,4 @@
-class Player {
+export class Player {
     x: number;
     y: number;
     z: number;

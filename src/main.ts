@@ -1,3 +1,10 @@
+import { lobbyInit, lobbyJoin, lobbyJoinAttempt, lobbyLeave, lobbyLoop, lobbyTerminate } from './matches/lobby-match/lobby';
+import { gameInit, gameJoin, gameJoinAttempt, gameLeave, gameLoop, gameTerminate } from './matches/game-match/game';
+
+import { rpcCreateMatch } from './rpcs/match-service';
+import { rpcLobbyInvite } from './rpcs/lobby-service';
+import { rpcSaveLevel, rpcGetLevels } from './rpcs/storage-service';
+
 let InitModule: nkruntime.InitModule = function (
     ctx: nkruntime.Context,
     logger: nkruntime.Logger,
@@ -23,9 +30,12 @@ let InitModule: nkruntime.InitModule = function (
     });
 
     initializer.registerRpc('createMatch', rpcCreateMatch);
+    
+    initializer.registerRpc('lobbyInvite', rpcLobbyInvite);
 
     initializer.registerRpc('saveLevel', rpcSaveLevel);
-    initializer.registerRpc('getLevels', rpGetLevels);
-
-    initializer.registerRpc('lobbyInvite', rpcLobbyInvite);
+    initializer.registerRpc('getLevels', rpcGetLevels);
 };
+
+// Reference InitModule to avoid it getting removed on build
+!InitModule && InitModule.bind(null);

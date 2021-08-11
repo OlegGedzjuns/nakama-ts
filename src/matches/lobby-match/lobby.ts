@@ -1,4 +1,11 @@
-const lobbyInit = (
+import { LobbyHandler } from './lobby-handler';
+
+import { NakamaError } from '../../models/error';
+import { Player } from '../../models/player';
+
+import { SERVER_MESSAGES } from '../../utils/constants';
+
+export const lobbyInit = (
     ctx: nkruntime.Context,
     logger: nkruntime.Logger,
     nk: nkruntime.Nakama,
@@ -13,7 +20,7 @@ const lobbyInit = (
     };
 };
 
-const lobbyJoinAttempt = (
+export const lobbyJoinAttempt = (
     ctx: nkruntime.Context,
     logger: nkruntime.Logger,
     nk: nkruntime.Nakama,
@@ -27,13 +34,7 @@ const lobbyJoinAttempt = (
 
     const error: NakamaError | null = LobbyHandler.validateJoinAttempt(state, presence);
 
-    if (error) {
-        return {
-            state,
-            accept: false,
-            rejectMessage: error.toString(),
-        };
-    }
+    if (error) return { state, accept: false, rejectMessage: error.toString() };
 
     return {
         state,
@@ -41,7 +42,7 @@ const lobbyJoinAttempt = (
     };
 };
 
-const lobbyJoin = (
+export const lobbyJoin = (
     ctx: nkruntime.Context,
     logger: nkruntime.Logger,
     nk: nkruntime.Nakama,
@@ -71,7 +72,7 @@ const lobbyJoin = (
     };
 };
 
-const lobbyLeave = (
+export const lobbyLeave = (
     ctx: nkruntime.Context,
     logger: nkruntime.Logger,
     nk: nkruntime.Nakama,
@@ -80,7 +81,7 @@ const lobbyLeave = (
     state: nkruntime.MatchState,
     presences: nkruntime.Presence[]
 ): { state: nkruntime.MatchState } | null => {
-    presences.forEach((pr) => {
+    presences.forEach(pr => {
         logger.debug(`${pr.username} left ${ctx.matchLabel} on ${tick} tick, userId: ${pr.userId}`);
 
         state.players = state.players.filter((pl: Player) => pl.presence.userId !== pr.userId);
@@ -92,7 +93,7 @@ const lobbyLeave = (
     };
 };
 
-const lobbyLoop = (
+export const lobbyLoop = (
     ctx: nkruntime.Context,
     logger: nkruntime.Logger,
     nk: nkruntime.Nakama,
@@ -103,11 +104,9 @@ const lobbyLoop = (
 ): { state: nkruntime.MatchState } | null => {
     state.lastActiveTick = state.players.length ? tick : state.lastActiveTick;
 
-    if (LobbyHandler.shouldStop(tick, ctx.matchTickRate, state.lastActiveTick)) {
-        return null;
-    }
+    if (LobbyHandler.shouldStop(tick, ctx.matchTickRate, state.lastActiveTick)) return null;
 
-    messages.forEach((m) => {
+    messages.forEach(m => {
         logger.info(`Received ${m.data} from ${m.sender.userId}`);
 
         state = LobbyHandler.handlePlayerMessage(logger, nk, dispatcher, state, m);
@@ -118,7 +117,7 @@ const lobbyLoop = (
     };
 };
 
-const lobbyTerminate = (
+export const lobbyTerminate = (
     ctx: nkruntime.Context,
     logger: nkruntime.Logger,
     nk: nkruntime.Nakama,
