@@ -1,9 +1,8 @@
-import { Color } from "../color";
+import { Vec3 } from '../../libs/playcanvas';
+import { Color } from '../color';
 
 export class NetworkIdentityData {
-    color: Color;
+    color: Color | undefined;
 
-    constructor(color: Color = Color.random()) {
-        this.color = color;
-    }
+    position: Vec3 | undefined = new Vec3();
 }

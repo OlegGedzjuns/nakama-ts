@@ -30,7 +30,7 @@ let InitModule: nkruntime.InitModule = function (
     });
 
     initializer.registerRpc('createMatch', rpcCreateMatch);
-    
+
     initializer.registerRpc('lobbyInvite', rpcLobbyInvite);
 
     initializer.registerRpc('saveLevel', rpcSaveLevel);

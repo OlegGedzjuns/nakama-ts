@@ -1,13 +1,13 @@
 import { NetworkIdentityData } from './network-identity-data';
 
 export class NetworkIdentity {
-    networkId: number;
+    id: number;
     syncInterval: number;
 
     data: NetworkIdentityData;
 
-    constructor(networkId: number, syncInterval: number = 1, data: NetworkIdentityData = new NetworkIdentityData()) {
-        this.networkId = networkId;
+    constructor(id: number, syncInterval: number = 1, data: NetworkIdentityData = new NetworkIdentityData()) {
+        this.id = id;
         this.syncInterval = syncInterval;
 
         this.data = data;

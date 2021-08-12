@@ -54,16 +54,14 @@ export const gameJoin = (
     presences.forEach((p: nkruntime.Presence) => {
         logger.debug(`${p.username} joined ${ctx.matchLabel} on ${tick} tick, userId: ${p.userId}`);
 
+        state = GameHandler.addPlayer(dispatcher, state, p);
+
         const initialState = {
             level: state.level,
-            networkIdentities: state.networkIdentities, // Add handling of last network identities state on the Client
+            networkIdentities: state.networkIdentities,
         };
 
         dispatcher.broadcastMessage(SERVER_MESSAGES.INITIAL_STATE, JSON.stringify(initialState), [p], null, true);
-
-        const player = new Player(p);
-        state.players.push(player);
-        dispatcher.broadcastMessage(SERVER_MESSAGES.PLAYER_JOINED, JSON.stringify(player.presence), null, null, true);
     });
 
     return {
@@ -105,17 +103,16 @@ export const gameLoop = (
 
     if (GameHandler.shouldStop(tick, state.lastActiveTick, ctx.matchTickRate)) return null;
 
-    // TODO: Added player messages handling
     messages.forEach(m => {
-        logger.info(`Received ${m.data} from ${m.sender.userId} with code ${m.opCode}`);
-        dispatcher.broadcastMessage(SERVER_MESSAGES.PLAYER_MESSAGE, m.data, null, m.sender);
+        logger.info(`Received ${m.data} from ${m.sender.userId}`);
+
+        state = GameHandler.handlePlayerMessage(logger, nk, dispatcher, state, m);
     });
 
     state.networkIdentities = GameHandler.handleNetworkIdentitiesChanges(state.networkIdentities);
     let networkIdentitiesToSync = GameHandler.getNetworkIdentitiesToSync(tick, state.networkIdentities);
 
-    if (networkIdentitiesToSync.length)
-        dispatcher.broadcastMessage(SERVER_MESSAGES.STATE_UPDATE, JSON.stringify(networkIdentitiesToSync), null, null);
+    if (networkIdentitiesToSync.length) dispatcher.broadcastMessage(SERVER_MESSAGES.STATE_UPDATE, JSON.stringify(networkIdentitiesToSync), null, null);
 
     return {
         state,

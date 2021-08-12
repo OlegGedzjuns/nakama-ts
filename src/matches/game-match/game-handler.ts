@@ -2,12 +2,15 @@ import { Color } from '../../models/color';
 import { NakamaError } from '../../models/error';
 import { NetworkIdentity } from '../../models/network-identity/network-identity';
 import { Player } from '../../models/player';
+import { ClientActionParams } from '../../models/client-action';
 
-import { ERROR_TYPES, SYSTEM_USER_ID } from '../../utils/constants';
+import { CLIENT_MESSAGES, ERROR_TYPES, SERVER_MESSAGES, SYSTEM_USER_ID } from '../../utils/constants';
 
 export class GameHandler {
-    static readonly SECONDS_WITHOUT_PLAYERS = 60;
-    static readonly TICK_RATE = 10;
+    public static readonly TICK_RATE = 10;
+
+    private static readonly SECONDS_WITHOUT_PLAYERS = 60;
+    private static lastNetworkId = 0;
 
     public static initState(nk: nkruntime.Nakama, params: { [key: string]: any }) {
         const [level, networkIdentities] = this.initializeLevel(nk, params.levelId);
@@ -23,11 +26,61 @@ export class GameHandler {
         return null;
     }
 
+    public static addPlayer(dispatcher: nkruntime.MatchDispatcher, state: nkruntime.MatchState, presence: nkruntime.Presence): nkruntime.MatchState {
+        const player = new Player(presence, 0);
+
+        state.players.push(player);
+
+        dispatcher.broadcastMessage(SERVER_MESSAGES.PLAYER_JOINED, JSON.stringify(player.presence), null, null, true);
+
+        return state;
+    }
+
     public static shouldStop(tick: number, lastTickWithPlayers: number, tickRate: number): boolean {
         return (tick - lastTickWithPlayers) / tickRate >= this.SECONDS_WITHOUT_PLAYERS;
     }
 
-    static handleNetworkIdentitiesChanges(networkIdentities: NetworkIdentity[]): NetworkIdentity[] {
+    public static handlePlayerMessage(
+        logger: nkruntime.Logger,
+        nk: nkruntime.Nakama,
+        dispatcher: nkruntime.MatchDispatcher,
+        state: nkruntime.MatchState,
+        message: nkruntime.MatchMessage
+    ): nkruntime.MatchState {
+        for (let k of Object.keys(CLIENT_MESSAGES)) {
+            if (CLIENT_MESSAGES[k].code == message.opCode) return CLIENT_MESSAGES[k].action({ logger, nk, dispatcher, state, message });
+        }
+
+        logger.warn('Cannot find player message action with code: ', message.opCode);
+
+        return state;
+    }
+
+    public static movePlayer(data: ClientActionParams): nkruntime.MatchState {
+        const message = JSON.parse(data.message.data);
+
+        const player: Player | null = data.state.players.find(p => p.presence.userId == data.message.sender.userId);
+
+        if (!player)
+            return data.state;
+
+        const networkIdentity: NetworkIdentity | null = data.state.networkIdentities.find(i => i.id == player.networkId);
+
+        if (!networkIdentity)
+            return data.state;
+
+        networkIdentity.data.position.x += message.direction.x;
+        networkIdentity.data.position.y += message.direction.y;
+        networkIdentity.data.position.z += message.direction.z;
+
+        return data.state;
+    }
+
+    // public static createEntitiy() {
+
+    // }
+
+    public static handleNetworkIdentitiesChanges(networkIdentities: NetworkIdentity[]): NetworkIdentity[] {
         for (let identity of networkIdentities) {
             identity.data.color = Color.random();
         }
@@ -35,7 +88,7 @@ export class GameHandler {
         return networkIdentities;
     }
 
-    static getNetworkIdentitiesToSync(tick: number, networkIdentities: NetworkIdentity[]): NetworkIdentity[] {
+    public static getNetworkIdentitiesToSync(tick: number, networkIdentities: NetworkIdentity[]): NetworkIdentity[] {
         let networkIdentitiesChanges: NetworkIdentity[] = [];
 
         for (let identity of networkIdentities) {
@@ -61,9 +114,9 @@ export class GameHandler {
 
         for (let guid in level.entities) {
             if (level.entities[guid].components.script?.order.includes('networkIdentity')) {
-                level.entities[guid].components.script.scripts.networkIdentity.attributes.networkId = networkIdentities.length;
-                const attribures = level.entities[guid].components.script.scripts.networkIdentity.attributes;
-                networkIdentities.push(new NetworkIdentity(attribures.networkId, attribures.syncInterval));
+                level.entities[guid].components.script.scripts.networkIdentity.attributes.networkId = this.lastNetworkId++;
+                const attributes = level.entities[guid].components.script.scripts.networkIdentity.attributes;
+                networkIdentities.push(new NetworkIdentity(attributes.id, attributes.syncInterval));
             }
         }
 

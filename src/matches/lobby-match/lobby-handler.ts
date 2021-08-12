@@ -1,15 +1,16 @@
 import { NakamaError } from '../../models/error';
 import { Player } from '../../models/player';
-import { PlayerActionParams } from '../../models/player-action';
+import { ClientActionParams } from '../../models/client-action';
 
 import { CLIENT_MESSAGES, ERROR_TYPES, MATCH_TYPES, SERVER_MESSAGES } from '../../utils/constants';
 
 export class LobbyHandler {
-    static readonly SECONDS_WITHOUT_PLAYERS = 10;
-    static readonly DEFAULT_MAX_PLAYERS = 3;
-    static readonly TICK_RATE = 1;
+    public static readonly TICK_RATE = 1;
 
-    static initState(params: { [key: string]: any }) {
+    private static readonly SECONDS_WITHOUT_PLAYERS = 10;
+    private static readonly DEFAULT_MAX_PLAYERS = 3;
+
+    public static initState(params: { [key: string]: any }) {
         const isPrivate: boolean = !!params.isPrivate ?? false;
         const maxPlayers: number = params.maxPlayers ?? this.DEFAULT_MAX_PLAYERS;
         const selectedLevel: string | null = null;
@@ -20,13 +21,13 @@ export class LobbyHandler {
         return { isPrivate, maxPlayers, selectedLevel, gameId, players, lastActiveTick };
     }
 
-    static validateJoinAttempt(state: nkruntime.MatchState, presensce: nkruntime.Presence): NakamaError | null {
+    public static validateJoinAttempt(state: nkruntime.MatchState, presensce: nkruntime.Presence): NakamaError | null {
         if (state.players.length >= state.maxPlayers) return new NakamaError(ERROR_TYPES.LOBBY_FULL, 'Lobby is full');
 
         return null;
     }
 
-    static handlePlayerMessage(
+    public static handlePlayerMessage(
         logger: nkruntime.Logger,
         nk: nkruntime.Nakama,
         dispatcher: nkruntime.MatchDispatcher,
@@ -42,7 +43,7 @@ export class LobbyHandler {
         return state;
     }
 
-    static setLevel(data: PlayerActionParams): nkruntime.MatchState {
+    public static setLevel(data: ClientActionParams): nkruntime.MatchState {
         const messageObject = JSON.parse(data.message.data);
 
         data.state.selectedLevel = messageObject.levelId;
@@ -58,7 +59,7 @@ export class LobbyHandler {
         return data.state;
     }
 
-    static startGame(data: PlayerActionParams): nkruntime.MatchState {
+    public static startGame(data: ClientActionParams): nkruntime.MatchState {
         const messageObject = JSON.parse(data.message.data);
 
         data.logger.warn(data.message.data);
@@ -70,7 +71,7 @@ export class LobbyHandler {
         return data.state;
     }
 
-    static shouldStop(tick: number, tickRate: number, lastTickWithPlayers: number): boolean {
+    public static shouldStop(tick: number, tickRate: number, lastTickWithPlayers: number): boolean {
         return (tick - lastTickWithPlayers) / tickRate >= this.SECONDS_WITHOUT_PLAYERS;
     }
 }

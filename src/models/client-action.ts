@@ -1,8 +1,8 @@
-export interface PlayerActionFunction {
-    (params: PlayerActionParams): nkruntime.MatchState;
+export interface ClientActionFunction {
+    (params: ClientActionParams): nkruntime.MatchState;
 }
 
-export interface PlayerActionParams {
+export interface ClientActionParams {
     logger: nkruntime.Logger;
     nk: nkruntime.Nakama;
     dispatcher: nkruntime.MatchDispatcher;

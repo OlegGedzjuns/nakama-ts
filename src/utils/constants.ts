@@ -1,6 +1,7 @@
+import { GameHandler } from '../matches/game-match/game-handler';
 import { LobbyHandler } from '../matches/lobby-match/lobby-handler';
 
-import { PlayerActionFunction, PlayerActionParams } from '../models/player-action';
+import { ClientActionFunction, ClientActionParams } from '../models/client-action';
 
 export const MATCH_TYPES = {
     LOBBY: 'lobby',
@@ -22,9 +23,11 @@ export const SERVER_MESSAGES = {
     STATE_UPDATE: 106,
 };
 
-export const CLIENT_MESSAGES: { [key: string]: { code: number; action: PlayerActionFunction } } = {
-    LOBBY_SET_LEVEL: { code: 1, action: (data: PlayerActionParams) => LobbyHandler.setLevel(data) },
-    LOBBY_START_GAME: { code: 2, action: (data: PlayerActionParams) => LobbyHandler.startGame(data) },
+export const CLIENT_MESSAGES: { [key: string]: { code: number; action: ClientActionFunction } } = {
+    LOBBY_SET_LEVEL: { code: 1, action: (data: ClientActionParams) => LobbyHandler.setLevel(data) },
+    LOBBY_START_GAME: { code: 2, action: (data: ClientActionParams) => LobbyHandler.startGame(data) },
+
+    PLAYER_MOVEMENT: { code: 101, action: (data: ClientActionParams) => GameHandler.movePlayer(data) },
 };
 
 export const NOTIFICATION_TYPES = {
