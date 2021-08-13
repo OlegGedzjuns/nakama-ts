@@ -1,33 +1,38 @@
+import { Vec3 } from '../../libs/playcanvas';
+
 import { Color } from '../../models/color';
 import { NakamaError } from '../../models/error';
 import { NetworkIdentity } from '../../models/network-identity/network-identity';
 import { Player } from '../../models/player';
 import { ClientActionParams } from '../../models/client-action';
 
-import { CLIENT_MESSAGES, ERROR_TYPES, SERVER_MESSAGES, SYSTEM_USER_ID } from '../../utils/constants';
+import { CLIENT_MESSAGES, SERVER_MESSAGES, SYSTEM_USER_ID } from '../../utils/constants';
 
 export class GameHandler {
     public static readonly TICK_RATE = 10;
 
     private static readonly SECONDS_WITHOUT_PLAYERS = 60;
+    private static readonly PLAYER_TEMPLATE_ID = 53346151;
     private static lastNetworkId = 0;
 
     public static initState(nk: nkruntime.Nakama, params: { [key: string]: any }) {
         const [level, networkIdentities] = this.initializeLevel(nk, params.levelId);
         const players: Player[] = [];
+        const expectedPlayers: number = params.expectedPlayers;
+        const playersInitialized: boolean = false;
         const lastActiveTick: number = 0;
 
-        return { level, networkIdentities, players, lastActiveTick };
+        return { level, networkIdentities, players, expectedPlayers, playersInitialized, lastActiveTick };
     }
 
     public static validateJoinAttempt(state: nkruntime.MatchState, presensce: nkruntime.Presence): NakamaError | null {
-        if (presensce.username.toUpperCase().indexOf('O') !== -1) return new NakamaError(ERROR_TYPES.INVALID_USERNAME, 'Invalid username');
+        // if (presensce.username.toUpperCase().indexOf('O') !== -1) return new NakamaError(ERROR_TYPES.INVALID_USERNAME, 'Invalid username');
 
         return null;
     }
 
     public static addPlayer(dispatcher: nkruntime.MatchDispatcher, state: nkruntime.MatchState, presence: nkruntime.Presence): nkruntime.MatchState {
-        const player = new Player(presence, 0);
+        const player = new Player(presence);
 
         state.players.push(player);
 
@@ -48,7 +53,8 @@ export class GameHandler {
         message: nkruntime.MatchMessage
     ): nkruntime.MatchState {
         for (let k of Object.keys(CLIENT_MESSAGES)) {
-            if (CLIENT_MESSAGES[k].code == message.opCode) return CLIENT_MESSAGES[k].action({ logger, nk, dispatcher, state, message });
+            if (CLIENT_MESSAGES[k].code == message.opCode)
+                return CLIENT_MESSAGES[k].action({ logger, nk, dispatcher, state, message });
         }
 
         logger.warn('Cannot find player message action with code: ', message.opCode);
@@ -59,12 +65,12 @@ export class GameHandler {
     public static movePlayer(data: ClientActionParams): nkruntime.MatchState {
         const message = JSON.parse(data.message.data);
 
-        const player: Player | null = data.state.players.find(p => p.presence.userId == data.message.sender.userId);
+        const player: Player | null = data.state.players.find((p : Player) => p.presence.userId == data.message.sender.userId);
 
         if (!player)
             return data.state;
 
-        const networkIdentity: NetworkIdentity | null = data.state.networkIdentities.find(i => i.id == player.networkId);
+        const networkIdentity: NetworkIdentity | null = data.state.networkIdentities.find((i: NetworkIdentity) => i.id == player.networkId);
 
         if (!networkIdentity)
             return data.state;
@@ -76,9 +82,44 @@ export class GameHandler {
         return data.state;
     }
 
-    // public static createEntitiy() {
+    public static playerLevelInitialized(data: ClientActionParams): nkruntime.MatchState {
+        for (let player of data.state.players as Player[]) {
+            if (player.presence.userId === data.message.sender.userId) {
+                player.levelCreated = true;
+                break;
+            }
+        }
 
-    // }
+        return data.state;
+    }
+
+    public static initializePlayers(state: nkruntime.MatchState, dispatcher: nkruntime.MatchDispatcher): nkruntime.MatchState {
+        let entitiesToCreate: { templateId: number; scripts: { [name: string]: any }; }[] = [];
+
+        for (let player of state.players as Player[]) {
+            const networkIdentity = new NetworkIdentity(this.lastNetworkId++, 1);
+            networkIdentity.data.position = Vec3.ZERO.clone();
+
+            player.networkId = networkIdentity.id;
+
+            state.networkIdentities.push(networkIdentity);
+
+            entitiesToCreate.push({
+                templateId: this.PLAYER_TEMPLATE_ID,
+                scripts: { networkIdentity: { syncInterval: networkIdentity.syncInterval, id: networkIdentity.id, ownerId: player.presence.userId } },
+            });
+        }
+
+        this.createEntities(dispatcher, entitiesToCreate);
+
+        state.playersInitialized = true;
+
+        return state;
+    }
+
+    public static createEntities(dispatcher: nkruntime.MatchDispatcher, entities: { templateId: number; scripts: { [name: string]: any }; }[]) {
+        dispatcher.broadcastMessage(SERVER_MESSAGES.CREATE_ENTITIES, JSON.stringify(entities), null, null, true);
+    }
 
     public static handleNetworkIdentitiesChanges(networkIdentities: NetworkIdentity[]): NetworkIdentity[] {
         for (let identity of networkIdentities) {
@@ -92,7 +133,8 @@ export class GameHandler {
         let networkIdentitiesChanges: NetworkIdentity[] = [];
 
         for (let identity of networkIdentities) {
-            if (tick % identity.syncInterval !== 0) continue;
+            if (tick % identity.syncInterval !== 0)
+                continue;
 
             networkIdentitiesChanges.push(identity);
         }

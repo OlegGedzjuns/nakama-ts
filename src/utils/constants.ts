@@ -21,6 +21,7 @@ export const SERVER_MESSAGES = {
     PLAYER_MESSAGE: 104,
     MATCH_TERMINATED: 105,
     STATE_UPDATE: 106,
+    CREATE_ENTITIES: 107,
 };
 
 export const CLIENT_MESSAGES: { [key: string]: { code: number; action: ClientActionFunction } } = {
@@ -28,6 +29,7 @@ export const CLIENT_MESSAGES: { [key: string]: { code: number; action: ClientAct
     LOBBY_START_GAME: { code: 2, action: (data: ClientActionParams) => LobbyHandler.startGame(data) },
 
     PLAYER_MOVEMENT: { code: 101, action: (data: ClientActionParams) => GameHandler.movePlayer(data) },
+    LEVEL_INITIALIZED: { code: 102, action: (data: ClientActionParams) => GameHandler.playerLevelInitialized(data) },
 };
 
 export const NOTIFICATION_TYPES = {

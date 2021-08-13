@@ -62,7 +62,7 @@ export class LobbyHandler {
     public static startGame(data: ClientActionParams): nkruntime.MatchState {
         const messageObject = JSON.parse(data.message.data);
 
-        data.logger.warn(data.message.data);
+        messageObject.expectedPlayers = data.state.players.length;
 
         data.state.gameId = data.nk.matchCreate(MATCH_TYPES.GAME, messageObject);
 

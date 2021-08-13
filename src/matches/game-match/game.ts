@@ -58,7 +58,6 @@ export const gameJoin = (
 
         const initialState = {
             level: state.level,
-            networkIdentities: state.networkIdentities,
         };
 
         dispatcher.broadcastMessage(SERVER_MESSAGES.INITIAL_STATE, JSON.stringify(initialState), [p], null, true);
@@ -104,15 +103,20 @@ export const gameLoop = (
     if (GameHandler.shouldStop(tick, state.lastActiveTick, ctx.matchTickRate)) return null;
 
     messages.forEach(m => {
-        logger.info(`Received ${m.data} from ${m.sender.userId}`);
-
         state = GameHandler.handlePlayerMessage(logger, nk, dispatcher, state, m);
     });
+
+    if (!state.playersInitialized && state.players.length === state.expectedPlayers && state.players.every((player: Player) => player.levelCreated))
+        state = GameHandler.initializePlayers(state, dispatcher);
+
+    if (!state.playersInitialized)
+        return { state };
 
     state.networkIdentities = GameHandler.handleNetworkIdentitiesChanges(state.networkIdentities);
     let networkIdentitiesToSync = GameHandler.getNetworkIdentitiesToSync(tick, state.networkIdentities);
 
-    if (networkIdentitiesToSync.length) dispatcher.broadcastMessage(SERVER_MESSAGES.STATE_UPDATE, JSON.stringify(networkIdentitiesToSync), null, null);
+    if (networkIdentitiesToSync.length)
+        dispatcher.broadcastMessage(SERVER_MESSAGES.STATE_UPDATE, JSON.stringify(networkIdentitiesToSync), null, null);
 
     return {
         state,
