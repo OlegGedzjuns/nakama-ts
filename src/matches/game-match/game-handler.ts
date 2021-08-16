@@ -26,7 +26,8 @@ export class GameHandler {
     }
 
     public static validateJoinAttempt(state: nkruntime.MatchState, presensce: nkruntime.Presence): NakamaError | null {
-        // if (presensce.username.toUpperCase().indexOf('O') !== -1) return new NakamaError(ERROR_TYPES.INVALID_USERNAME, 'Invalid username');
+        // if (presensce.username.toUpperCase().indexOf('O') !== -1)
+        //    return new NakamaError(ERROR_TYPES.INVALID_USERNAME, 'Invalid username');
 
         return null;
     }

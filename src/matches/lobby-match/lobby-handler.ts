@@ -13,18 +13,41 @@ export class LobbyHandler {
     public static initState(params: { [key: string]: any }) {
         const isPrivate: boolean = !!params.isPrivate ?? false;
         const maxPlayers: number = params.maxPlayers ?? this.DEFAULT_MAX_PLAYERS;
+        const ownerId: string | null = null;
         const selectedLevel: string | null = null;
         const gameId: string | null = null;
         const players: Player[] = [];
         const lastActiveTick: number = 0;
 
-        return { isPrivate, maxPlayers, selectedLevel, gameId, players, lastActiveTick };
+        return { isPrivate, maxPlayers, ownerId, selectedLevel, gameId, players, lastActiveTick };
     }
 
     public static validateJoinAttempt(state: nkruntime.MatchState, presensce: nkruntime.Presence): NakamaError | null {
-        if (state.players.length >= state.maxPlayers) return new NakamaError(ERROR_TYPES.LOBBY_FULL, 'Lobby is full');
+        if (state.players.length >= state.maxPlayers)
+            return new NakamaError(ERROR_TYPES.LOBBY_FULL, 'Lobby is full');
 
         return null;
+    }
+
+    public static addPlayer(dispatcher: nkruntime.MatchDispatcher, state: nkruntime.MatchState, presence: nkruntime.Presence): nkruntime.MatchState {
+        if (state.players.length == 0)
+            state.ownerId = presence.userId;
+
+        const initialState = {
+            players: state.players,
+            selectedLevel: state.selectedLevel,
+            gameId: state.gameId,
+            ownerId: state.ownerId,
+        };
+
+        dispatcher.broadcastMessage(SERVER_MESSAGES.LOBBY_INITIAL_STATE, JSON.stringify(initialState), [presence], null, true);
+
+        const player = new Player(presence);
+
+        state.players.push(player);
+        dispatcher.broadcastMessage(SERVER_MESSAGES.LOBBY_JOINED, JSON.stringify(player.presence), null, null, true);
+
+        return state;
     }
 
     public static handlePlayerMessage(
@@ -34,6 +57,9 @@ export class LobbyHandler {
         state: nkruntime.MatchState,
         message: nkruntime.MatchMessage
     ): nkruntime.MatchState {
+        if (message.sender != state.ownerId)
+            return state;
+        
         for (let k of Object.keys(CLIENT_MESSAGES)) {
             if (CLIENT_MESSAGES[k].code == message.opCode) return CLIENT_MESSAGES[k].action({ logger, nk, dispatcher, state, message });
         }

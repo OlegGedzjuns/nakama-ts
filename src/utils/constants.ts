@@ -18,10 +18,9 @@ export const SERVER_MESSAGES = {
     PLAYER_JOINED: 101,
     INITIAL_STATE: 102,
     PLAYER_LEFT: 103,
-    PLAYER_MESSAGE: 104,
-    MATCH_TERMINATED: 105,
-    STATE_UPDATE: 106,
-    CREATE_ENTITIES: 107,
+    MATCH_TERMINATED: 104,
+    STATE_UPDATE: 105,
+    CREATE_ENTITIES: 106,
 };
 
 export const CLIENT_MESSAGES: { [key: string]: { code: number; action: ClientActionFunction } } = {

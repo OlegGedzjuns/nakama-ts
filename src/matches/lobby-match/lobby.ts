@@ -34,7 +34,8 @@ export const lobbyJoinAttempt = (
 
     const error: NakamaError | null = LobbyHandler.validateJoinAttempt(state, presence);
 
-    if (error) return { state, accept: false, rejectMessage: error.toString() };
+    if (error)
+        return { state, accept: false, rejectMessage: error.toString() };
 
     return {
         state,
@@ -54,17 +55,7 @@ export const lobbyJoin = (
     presences.forEach((p: nkruntime.Presence) => {
         logger.debug(`${p.username} joined ${ctx.matchLabel} on ${tick} tick, userId: ${p.userId}`);
 
-        const initialState = {
-            players: state.players,
-            selectedLevel: state.selectedLevel,
-            gameId: state.gameId,
-        };
-
-        dispatcher.broadcastMessage(SERVER_MESSAGES.LOBBY_INITIAL_STATE, JSON.stringify(initialState), [p], null, true);
-
-        const player = new Player(p);
-        state.players.push(player);
-        dispatcher.broadcastMessage(SERVER_MESSAGES.LOBBY_JOINED, JSON.stringify(player.presence), null, null, true);
+        state = LobbyHandler.addPlayer(dispatcher, state, p);
     });
 
     return {
@@ -85,7 +76,16 @@ export const lobbyLeave = (
         logger.debug(`${pr.username} left ${ctx.matchLabel} on ${tick} tick, userId: ${pr.userId}`);
 
         state.players = state.players.filter((pl: Player) => pl.presence.userId !== pr.userId);
-        dispatcher.broadcastMessage(SERVER_MESSAGES.LOBBY_LEFT, JSON.stringify(pr), null, null, true);
+
+        if (pr.userId == state.ownerId)
+            state.ownerId = state.players.length ? state.players[0].presence.userId : null;
+
+        const message = {
+            presence: pr,
+            ownerId: state.ownerId,
+        }
+
+        dispatcher.broadcastMessage(SERVER_MESSAGES.LOBBY_LEFT, JSON.stringify(message), null, null, true);
     });
 
     return {
