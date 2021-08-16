@@ -57,7 +57,7 @@ export class LobbyHandler {
         state: nkruntime.MatchState,
         message: nkruntime.MatchMessage
     ): nkruntime.MatchState {
-        if (message.sender != state.ownerId)
+        if (message.sender.userId != state.ownerId)
             return state;
         
         for (let k of Object.keys(CLIENT_MESSAGES)) {
