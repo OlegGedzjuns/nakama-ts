@@ -1,6 +1,5 @@
 import { Vec3 } from '../../libs/playcanvas';
 
-import { Color } from '../../models/color';
 import { NakamaError } from '../../models/error';
 import { NetworkIdentity } from '../../models/network-identity/network-identity';
 import { Player } from '../../models/player';
@@ -9,7 +8,7 @@ import { ClientActionParams } from '../../models/client-action';
 import { CLIENT_MESSAGES, SERVER_MESSAGES, SYSTEM_USER_ID } from '../../utils/constants';
 
 export class GameHandler {
-    public static readonly TICK_RATE = 10;
+    public static readonly TICK_RATE = 60;
 
     private static readonly SECONDS_WITHOUT_PLAYERS = 60;
     private static readonly PLAYER_TEMPLATE_ID = 53346151;
@@ -26,9 +25,6 @@ export class GameHandler {
     }
 
     public static validateJoinAttempt(state: nkruntime.MatchState, presensce: nkruntime.Presence): NakamaError | null {
-        // if (presensce.username.toUpperCase().indexOf('O') !== -1)
-        //    return new NakamaError(ERROR_TYPES.INVALID_USERNAME, 'Invalid username');
-
         return null;
     }
 
@@ -123,10 +119,6 @@ export class GameHandler {
     }
 
     public static handleNetworkIdentitiesChanges(networkIdentities: NetworkIdentity[]): NetworkIdentity[] {
-        for (let identity of networkIdentities) {
-            identity.data.color = Color.random();
-        }
-
         return networkIdentities;
     }
 

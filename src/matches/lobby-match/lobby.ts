@@ -1,9 +1,6 @@
 import { LobbyHandler } from './lobby-handler';
 
 import { NakamaError } from '../../models/error';
-import { Player } from '../../models/player';
-
-import { SERVER_MESSAGES } from '../../utils/constants';
 
 export const lobbyInit = (
     ctx: nkruntime.Context,
@@ -30,17 +27,14 @@ export const lobbyJoinAttempt = (
     presence: nkruntime.Presence,
     metadata: { [key: string]: any }
 ): { state: nkruntime.MatchState; accept: boolean; rejectMessage?: string | undefined } | null => {
-    logger.debug(`${presence.username} attempted to join ${ctx.matchLabel} on ${tick} tick, userId: ${presence.userId}`);
+    logger.info(`${presence.username} attempted to join ${ctx.matchLabel} on ${tick} tick, userId: ${presence.userId}`);
 
     const error: NakamaError | null = LobbyHandler.validateJoinAttempt(state, presence);
 
     if (error)
         return { state, accept: false, rejectMessage: error.toString() };
 
-    return {
-        state,
-        accept: true,
-    };
+    return { state, accept: true };
 };
 
 export const lobbyJoin = (
@@ -53,14 +47,12 @@ export const lobbyJoin = (
     presences: nkruntime.Presence[]
 ): { state: nkruntime.MatchState } | null => {
     presences.forEach((p: nkruntime.Presence) => {
-        logger.debug(`${p.username} joined ${ctx.matchLabel} on ${tick} tick, userId: ${p.userId}`);
+        logger.info(`${p.username} joined ${ctx.matchLabel} on ${tick} tick, userId: ${p.userId}`);
 
         state = LobbyHandler.addPlayer(dispatcher, state, p);
     });
 
-    return {
-        state,
-    };
+    return { state };
 };
 
 export const lobbyLeave = (
@@ -73,24 +65,12 @@ export const lobbyLeave = (
     presences: nkruntime.Presence[]
 ): { state: nkruntime.MatchState } | null => {
     presences.forEach(pr => {
-        logger.debug(`${pr.username} left ${ctx.matchLabel} on ${tick} tick, userId: ${pr.userId}`);
+        logger.info(`${pr.username} left ${ctx.matchLabel} on ${tick} tick, userId: ${pr.userId}`);
 
-        state.players = state.players.filter((pl: Player) => pl.presence.userId !== pr.userId);
-
-        if (pr.userId == state.ownerId)
-            state.ownerId = state.players.length ? state.players[0].presence.userId : null;
-
-        const message = {
-            presence: pr,
-            ownerId: state.ownerId,
-        }
-
-        dispatcher.broadcastMessage(SERVER_MESSAGES.LOBBY_LEFT, JSON.stringify(message), null, null, true);
+        state = LobbyHandler.removePlayer(dispatcher, state, pr);
     });
 
-    return {
-        state,
-    };
+    return { state };
 };
 
 export const lobbyLoop = (
@@ -112,9 +92,7 @@ export const lobbyLoop = (
         state = LobbyHandler.handlePlayerMessage(logger, nk, dispatcher, state, m);
     });
 
-    return {
-        state,
-    };
+    return { state };
 };
 
 export const lobbyTerminate = (
@@ -126,9 +104,7 @@ export const lobbyTerminate = (
     state: nkruntime.MatchState,
     graceSeconds: number
 ): { state: nkruntime.MatchState } | null => {
-    logger.debug(`${ctx.matchLabel} terminated on ${tick} tick`);
+    logger.info(`${ctx.matchLabel} terminated on ${tick} tick`);
 
-    return {
-        state,
-    };
+    return { state };
 };

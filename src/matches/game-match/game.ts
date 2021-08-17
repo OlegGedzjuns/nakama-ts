@@ -30,16 +30,14 @@ export const gameJoinAttempt = (
     presence: nkruntime.Presence,
     metadata: { [key: string]: any }
 ): { state: nkruntime.MatchState; accept: boolean; rejectMessage?: string | undefined } | null => {
-    logger.debug(`${presence.username} attempted to join ${ctx.matchLabel} on ${tick} tick, userId: ${presence.userId}`);
+    logger.info(`${presence.username} attempted to join ${ctx.matchLabel} on ${tick} tick, userId: ${presence.userId}`);
 
     const error: NakamaError | null = GameHandler.validateJoinAttempt(state, presence);
 
-    if (error) return { state, accept: false, rejectMessage: error.toString() };
+    if (error)
+        return { state, accept: false, rejectMessage: error.toString() };
 
-    return {
-        state,
-        accept: true,
-    };
+    return { state, accept: true };
 };
 
 export const gameJoin = (
@@ -52,20 +50,16 @@ export const gameJoin = (
     presences: nkruntime.Presence[]
 ): { state: nkruntime.MatchState } | null => {
     presences.forEach((p: nkruntime.Presence) => {
-        logger.debug(`${p.username} joined ${ctx.matchLabel} on ${tick} tick, userId: ${p.userId}`);
+        logger.info(`${p.username} joined ${ctx.matchLabel} on ${tick} tick, userId: ${p.userId}`);
 
         state = GameHandler.addPlayer(dispatcher, state, p);
 
-        const initialState = {
-            level: state.level,
-        };
+        const initialState = { level: state.level };
 
         dispatcher.broadcastMessage(SERVER_MESSAGES.INITIAL_STATE, JSON.stringify(initialState), [p], null, true);
     });
 
-    return {
-        state,
-    };
+    return { state };
 };
 
 export const gameLeave = (
@@ -78,15 +72,13 @@ export const gameLeave = (
     presences: nkruntime.Presence[]
 ): { state: nkruntime.MatchState } | null => {
     presences.forEach(pr => {
-        logger.debug(`${pr.username} left ${ctx.matchLabel} on ${tick} tick, userId: ${pr.userId}`);
+        logger.info(`${pr.username} left ${ctx.matchLabel} on ${tick} tick, userId: ${pr.userId}`);
 
         state.players = state.players.filter((pl: Player) => pl.presence.userId !== pr.userId);
         dispatcher.broadcastMessage(SERVER_MESSAGES.PLAYER_LEFT, JSON.stringify(pr), null, null, true);
     });
 
-    return {
-        state,
-    };
+    return { state };
 };
 
 export const gameLoop = (
@@ -100,7 +92,8 @@ export const gameLoop = (
 ): { state: nkruntime.MatchState } | null => {
     state.lastActiveTick = state.players.length ? tick : state.lastActiveTick;
 
-    if (GameHandler.shouldStop(tick, state.lastActiveTick, ctx.matchTickRate)) return null;
+    if (GameHandler.shouldStop(tick, state.lastActiveTick, ctx.matchTickRate))
+        return null;
 
     messages.forEach(m => {
         state = GameHandler.handlePlayerMessage(logger, nk, dispatcher, state, m);
@@ -118,9 +111,7 @@ export const gameLoop = (
     if (networkIdentitiesToSync.length)
         dispatcher.broadcastMessage(SERVER_MESSAGES.STATE_UPDATE, JSON.stringify(networkIdentitiesToSync), null, null);
 
-    return {
-        state,
-    };
+    return { state };
 };
 
 export const gameTerminate = (
@@ -132,12 +123,7 @@ export const gameTerminate = (
     state: nkruntime.MatchState,
     graceSeconds: number
 ): { state: nkruntime.MatchState } | null => {
-    logger.debug(`${ctx.matchLabel} terminated on ${tick} tick`);
+    logger.info(`${ctx.matchLabel} terminated on ${tick} tick`);
 
-    const message = `Server shutting down in ${graceSeconds} seconds.`;
-    dispatcher.broadcastMessage(SERVER_MESSAGES.MATCH_TERMINATED, message, null, null, true);
-
-    return {
-        state,
-    };
+    return { state };
 };

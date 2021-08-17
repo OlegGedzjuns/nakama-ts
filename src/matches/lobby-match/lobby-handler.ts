@@ -50,6 +50,19 @@ export class LobbyHandler {
         return state;
     }
 
+    public static removePlayer(dispatcher: nkruntime.MatchDispatcher, state: nkruntime.MatchState, presence: nkruntime.Presence): nkruntime.MatchState {
+        state.players = state.players.filter((p: Player) => p.presence.userId !== presence.userId);
+
+        if (presence.userId == state.ownerId)
+            state.ownerId = state.players.length ? state.players[0].presence.userId : null;
+
+        const message = { presence: presence, ownerId: state.ownerId }
+
+        dispatcher.broadcastMessage(SERVER_MESSAGES.LOBBY_LEFT, JSON.stringify(message), null, null, true);
+
+        return state;
+    }
+
     public static handlePlayerMessage(
         logger: nkruntime.Logger,
         nk: nkruntime.Nakama,

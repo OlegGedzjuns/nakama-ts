@@ -18,9 +18,8 @@ export const SERVER_MESSAGES = {
     PLAYER_JOINED: 101,
     INITIAL_STATE: 102,
     PLAYER_LEFT: 103,
-    MATCH_TERMINATED: 104,
-    STATE_UPDATE: 105,
-    CREATE_ENTITIES: 106,
+    STATE_UPDATE: 104,
+    CREATE_ENTITIES: 105,
 };
 
 export const CLIENT_MESSAGES: { [key: string]: { code: number; action: ClientActionFunction } } = {
@@ -38,7 +37,6 @@ export const NOTIFICATION_TYPES = {
 export const ERROR_TYPES = {
     LOBBY_FULL: 1,
     WRONG_PARAMS: 2,
-    INVALID_USERNAME: 3,
 };
 
 // https://github.com/heroiclabs/nakama/issues/657
