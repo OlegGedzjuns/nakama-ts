@@ -69,10 +69,7 @@ export class LobbyHandler {
         dispatcher: nkruntime.MatchDispatcher,
         state: nkruntime.MatchState,
         message: nkruntime.MatchMessage
-    ): nkruntime.MatchState {
-        if (message.sender.userId != state.ownerId)
-            return state;
-        
+    ): nkruntime.MatchState {        
         for (let k of Object.keys(CLIENT_MESSAGES)) {
             if (CLIENT_MESSAGES[k].code == message.opCode) return CLIENT_MESSAGES[k].action({ logger, nk, dispatcher, state, message });
         }
@@ -83,6 +80,9 @@ export class LobbyHandler {
     }
 
     public static setLevel(data: ClientActionParams): nkruntime.MatchState {
+        if (data.message.sender.userId != data.state.ownerId)
+            return data.state;
+
         const messageObject = JSON.parse(data.message.data);
 
         data.state.selectedLevel = messageObject.levelId;
@@ -99,6 +99,12 @@ export class LobbyHandler {
     }
 
     public static startGame(data: ClientActionParams): nkruntime.MatchState {
+        if (data.message.sender.userId != data.state.ownerId)
+            return data.state;
+
+        if (data.state.players.some((p: Player) => p.presence.userId != data.state.ownerId && !p.isReady))
+            return data.state;
+
         const messageObject = JSON.parse(data.message.data);
 
         messageObject.expectedPlayers = data.state.players.length;
@@ -106,6 +112,24 @@ export class LobbyHandler {
         data.state.gameId = data.nk.matchCreate(MATCH_TYPES.GAME, messageObject);
 
         data.dispatcher.broadcastMessage(SERVER_MESSAGES.LOBBY_GAME_STARTED, JSON.stringify({ gameId: data.state.gameId }), null, null, true);
+
+        return data.state;
+    }
+
+    public static setIsReady(data: ClientActionParams): nkruntime.MatchState {
+        const messageObject = JSON.parse(data.message.data);
+
+        const player: Player = data.state.players.find((p: Player) => p.presence.userId == data.message.sender.userId);
+
+        player.isReady = messageObject.isReady;
+
+        data.dispatcher.broadcastMessage(
+            SERVER_MESSAGES.LOBBY_STATE_UPDATE,
+            JSON.stringify({ playerReady: { username: player.presence.username, userId: player.presence.userId, isReady: player.isReady } }),
+            null,
+            null,
+            true
+        );
 
         return data.state;
     }
