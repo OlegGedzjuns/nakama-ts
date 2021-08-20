@@ -11,7 +11,7 @@ export class GameHandler {
     public static readonly TICK_RATE = 60;
 
     private static readonly SECONDS_WITHOUT_PLAYERS = 60;
-    private static readonly PLAYER_TEMPLATE_ID = 53346151;
+    private static readonly PLAYER_TEMPLATE_ID = 53910467;
     private static lastNetworkId = 0;
 
     public static initState(nk: nkruntime.Nakama, params: { [key: string]: any }) {
@@ -72,9 +72,17 @@ export class GameHandler {
         if (!networkIdentity)
             return data.state;
 
-        networkIdentity.data.position.x += message.direction.x;
-        networkIdentity.data.position.y += message.direction.y;
-        networkIdentity.data.position.z += message.direction.z;
+        if (message.position) {
+            networkIdentity.data.position.x = message.position.x;
+            networkIdentity.data.position.y = message.position.y;
+            networkIdentity.data.position.z = message.position.z;
+        }
+
+        if (message.direction) {
+            networkIdentity.data.position.x += message.direction.x;
+            networkIdentity.data.position.y += message.direction.y;
+            networkIdentity.data.position.z += message.direction.z;
+        }
 
         return data.state;
     }
@@ -91,7 +99,7 @@ export class GameHandler {
     }
 
     public static initializePlayers(state: nkruntime.MatchState, dispatcher: nkruntime.MatchDispatcher): nkruntime.MatchState {
-        let entitiesToCreate: { templateId: number; scripts: { [name: string]: any }; }[] = [];
+        let entitiesToCreate: { templateId: number; scripts: { [name: string]: any }; username: string; }[] = [];
 
         for (let player of state.players as Player[]) {
             const networkIdentity = new NetworkIdentity(this.lastNetworkId++, 1);
@@ -104,6 +112,7 @@ export class GameHandler {
             entitiesToCreate.push({
                 templateId: this.PLAYER_TEMPLATE_ID,
                 scripts: { networkIdentity: { syncInterval: networkIdentity.syncInterval, id: networkIdentity.id, ownerId: player.presence.userId } },
+                username: player.presence.username,
             });
         }
 
@@ -114,7 +123,7 @@ export class GameHandler {
         return state;
     }
 
-    public static createEntities(dispatcher: nkruntime.MatchDispatcher, entities: { templateId: number; scripts: { [name: string]: any }; }[]) {
+    public static createEntities(dispatcher: nkruntime.MatchDispatcher, entities: { templateId: number; scripts: { [name: string]: any }; username: string; }[]) {
         dispatcher.broadcastMessage(SERVER_MESSAGES.CREATE_ENTITIES, JSON.stringify(entities), null, null, true);
     }
 
