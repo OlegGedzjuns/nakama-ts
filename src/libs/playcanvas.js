@@ -585,7 +585,7 @@ const console = require('./console');
 		if (gl.getSupportedExtensions) {
 			var exts = gl.getSupportedExtensions();
 
-			if (exts.indexOf("OES_vertex_array_object") != -1) {
+			if (!exts.indexOf || exts.indexOf("OES_vertex_array_object") != -1) {
 				return;
 			}
 		} else if (gl.getExtension) {
@@ -13632,9 +13632,11 @@ const console = require('./console');
 			var gl = this.gl;
 			var ext;
 			var supportedExtensions = {};
-			gl.getSupportedExtensions().forEach(function (e) {
-				supportedExtensions[e] = true;
-			});
+			var exts = gl.getSupportedExtensions();
+			if (exts.forEach)
+				exts.forEach(function (e) {
+					supportedExtensions[e] = true;
+				});
 
 			var getExtension = function getExtension() {
 				for (var i = 0; i < arguments.length; i++) {

@@ -1,9 +1,12 @@
+import HTMLCanvasElement from 'webgl-mock-threejs/src/HTMLCanvasElement';
+
 import { lobbyInit, lobbyJoin, lobbyJoinAttempt, lobbyLeave, lobbyLoop, lobbyTerminate } from './matches/lobby-match/lobby';
 import { gameInit, gameJoin, gameJoinAttempt, gameLeave, gameLoop, gameTerminate } from './matches/game-match/game';
 
 import { rpcCreateMatch } from './rpcs/match-service';
 import { rpcLobbyInvite } from './rpcs/lobby-service';
 import { rpcSaveLevel, rpcGetLevels } from './rpcs/storage-service';
+import { Application, Entity } from './libs/playcanvas';
 
 let InitModule: nkruntime.InitModule = function (
     ctx: nkruntime.Context,
@@ -11,6 +14,20 @@ let InitModule: nkruntime.InitModule = function (
     nk: nkruntime.Nakama,
     initializer: nkruntime.Initializer
 ) {
+    const canvas = new HTMLCanvasElement(100, 100);
+
+    const app = new Application(canvas, {});
+
+    const box = new Entity('cube');
+    box.addComponent('model', {
+        type: 'box'
+    });
+    // app.root.addChild(box);
+
+    app.on('update', dt => logger.info('DT: ' + dt));
+
+    app.start();
+
     initializer.registerMatch('lobby', {
         matchInit: lobbyInit,
         matchJoinAttempt: lobbyJoinAttempt,
