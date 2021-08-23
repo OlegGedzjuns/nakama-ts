@@ -1,6 +1,8 @@
+const console = require('./console');
+
 /**
  * @license
- * PlayCanvas Engine v1.46.0-dev revision unknown
+ * PlayCanvas Engine v1.46.1 revision 49b2ea2e4
  * Copyright 2011-2021 PlayCanvas Ltd. All rights reserved.
  */
 (function (global, factory) {
@@ -634,8 +636,8 @@
 		return result;
 	}();
 
-	var version = "1.46.0-dev";
-	var revision = "unknown";
+	var version = "1.46.1";
+	var revision = "49b2ea2e4";
 	var config = {};
 	var common = {};
 	var apps = {};
@@ -2164,6 +2166,7 @@
 				options.retries++;
 				options.retrying = true;
 				var retryDelay = math.clamp(Math.pow(2, options.retries) * Http.retryDelay, 0, options.maxRetryDelay || 5000);
+				console.log(method + ': ' + url + ' - Error ' + xhr.status + '. Retrying in ' + retryDelay + ' ms');
 				setTimeout(function () {
 					options.retrying = false;
 					this.request(method, url, options, options.callback);
@@ -5671,6 +5674,7 @@
 
 		_proto.setData = function setData(data) {
 			if (data.byteLength !== this.numBytes) {
+				console.error("VertexBuffer: wrong initial data size: expected " + this.numBytes + ", got " + data.byteLength);
 				return false;
 			}
 
@@ -8221,6 +8225,7 @@
 						clusteredLight.max.copy(tempBox.getMax());
 						lightIndex++;
 					} else {
+						console.warn("Clustered lighting: more than " + (this.maxLights - 1) + " lights in the frame, ignoring some.");
 						break;
 					}
 				}
@@ -9603,12 +9608,14 @@
 			}
 		},
 		_setMapTransform: function _setMapTransform(codes, name, id, uv) {
-			codes[0] += "uniform vec4 texture_" + name + "MapTransform;\n";
+			var varName = "texture_" + name + "MapTransform";
 			var checkId = id + uv * 100;
+			codes[0] += "uniform vec3 " + varName + "0;\n";
+			codes[0] += "uniform vec3 " + varName + "1;\n";
 
 			if (!codes[3][checkId]) {
 				codes[1] += "varying vec2 vUV" + uv + "_" + id + ";\n";
-				codes[2] += "	 vUV" + uv + "_" + id + " = uv" + uv + " * texture_" + name + "MapTransform.xy + texture_" + name + "MapTransform.zw;\n";
+				codes[2] += "	 vUV" + uv + "_" + id + " = vec2(dot(vec3(uv" + uv + ", 1), " + varName + "0), dot(vec3(uv" + uv + ", 1), " + varName + "1));\n";
 				codes[3][checkId] = true;
 			}
 
@@ -11315,7 +11322,7 @@
 			}
 		};
 
-		_proto.updateUniforms = function updateUniforms() {};
+		_proto.updateUniforms = function updateUniforms(device, scene) {};
 
 		_proto.updateShader = function updateShader(device, scene, objDefs) {};
 
@@ -11812,7 +11819,7 @@
 
 				if (allow) {
 					options[mname] = !!stdMat[mname];
-					options[tname] = this._getMapTransformID(stdMat[tname], stdMat[uname]);
+					options[tname] = this._getMapTransformID(stdMat.getUniform(tname), stdMat[uname]);
 					options[cname] = stdMat[cname];
 					options[uname] = stdMat[uname];
 				}
@@ -11851,46 +11858,36 @@
 		}
 	};
 
+	var arraysEqual = function arraysEqual(a, b) {
+		if (a.length !== b.length) {
+			return false;
+		}
+
+		for (var i = 0; i < a.length; ++i) {
+			if (a[i] !== b[i]) {
+				return false;
+			}
+		}
+
+		return true;
+	};
+
 	StandardMaterialOptionsBuilder.prototype._getMapTransformID = function (xform, uv) {
 		if (!xform) return 0;
-		if (!this._mapXForms[uv]) this._mapXForms[uv] = [];
-		var i, same;
+		var xforms = this._mapXForms[uv];
 
-		for (i = 0; i < this._mapXForms[uv].length; i++) {
-			same = true;
+		if (!xforms) {
+			xforms = [];
+			this._mapXForms[uv] = xforms;
+		}
 
-			if (this._mapXForms[uv][i][0] !== xform.x) {
-				same = false;
-				break;
-			}
-
-			if (this._mapXForms[uv][i][1] !== xform.y) {
-				same = false;
-				break;
-			}
-
-			if (this._mapXForms[uv][i][2] !== xform.z) {
-				same = false;
-				break;
-			}
-
-			if (this._mapXForms[uv][i][3] !== xform.w) {
-				same = false;
-				break;
-			}
-
-			if (same) {
+		for (var i = 0; i < xforms.length; i++) {
+			if (arraysEqual(xforms[i][0].value, xform[0].value) && arraysEqual(xforms[i][1].value, xform[1].value)) {
 				return i + 1;
 			}
 		}
 
-		var newID = this._mapXForms[uv].length;
-		this._mapXForms[uv][newID] = [];
-		this._mapXForms[uv][newID][0] = xform.x;
-		this._mapXForms[uv][newID][1] = xform.y;
-		this._mapXForms[uv][newID][2] = xform.z;
-		this._mapXForms[uv][newID][3] = xform.w;
-		return newID + 1;
+		return xforms.push(xform);
 	};
 
 	var standardMaterialParameterTypes = {
@@ -11907,6 +11904,7 @@
 		aoMapUv: 'number',
 		aoMapTiling: 'vec2',
 		aoMapOffset: 'vec2',
+		aoMapRotation: 'number',
 		diffuse: 'rgb',
 		diffuseTint: 'boolean',
 		diffuseVertexColor: 'boolean',
@@ -11916,11 +11914,13 @@
 		diffuseMapUv: 'number',
 		diffuseMapTiling: 'vec2',
 		diffuseMapOffset: 'vec2',
+		diffuseMapRotation: 'number',
 		diffuseDetailMap: 'texture',
 		diffuseDetailMapChannel: 'string',
 		diffuseDetailMapUv: 'number',
 		diffuseDetailMapTiling: 'vec2',
 		diffuseDetailMapOffset: 'vec2',
+		diffuseDetailMapRotation: 'number',
 		diffuseDetailMode: 'string',
 		specular: 'rgb',
 		specularTint: 'boolean',
@@ -11931,6 +11931,7 @@
 		specularMapUv: 'number',
 		specularMapTiling: 'vec2',
 		specularMapOffset: 'vec2',
+		specularMapRotation: 'number',
 		specularAntialias: 'boolean',
 		occludeSpecular: 'enum:occludeSpecular',
 		useMetalness: 'boolean',
@@ -11945,6 +11946,7 @@
 		metalnessMapUv: 'number',
 		metalnessMapTiling: 'vec2',
 		metalnessMapOffset: 'vec2',
+		netalnessMapRotation: 'number',
 		conserveEnergy: 'boolean',
 		shininess: 'number',
 		glossVertexColor: 'boolean',
@@ -11954,6 +11956,7 @@
 		glossMapUv: 'number',
 		glossMapTiling: 'vec2',
 		glossMapOffset: 'vec2',
+		glossMapRotation: 'number',
 		clearCoat: 'number',
 		clearCoatVertexColor: 'boolean',
 		clearCoatVertexColorChannel: 'string',
@@ -11962,6 +11965,7 @@
 		clearCoatMapUv: 'number',
 		clearCoatMapTiling: 'vec2',
 		clearCoatMapOffset: 'vec2',
+		clearCoatMapRotation: 'number',
 		clearCoatGlossiness: 'number',
 		clearCoatGlossVertexColor: 'boolean',
 		clearCoatGlossVertexColorChannel: 'string',
@@ -11970,11 +11974,13 @@
 		clearCoatGlossMapUv: 'number',
 		clearCoatGlossMapTiling: 'vec2',
 		clearCoatGlossMapOffset: 'vec2',
+		clearCoatGlossMapRotation: 'number',
 		clearCoatBumpiness: 'number',
 		clearCoatNormalMap: 'texture',
 		clearCoatNormalMapUv: 'number',
 		clearCoatNormalMapTiling: 'vec2',
 		clearCoatNormalMapOffset: 'vec2',
+		clearCoatNormalMapRotation: 'number',
 		fresnelModel: 'number',
 		emissive: 'rgb',
 		emissiveTint: 'boolean',
@@ -11985,15 +11991,18 @@
 		emissiveMapUv: 'number',
 		emissiveMapTiling: 'vec2',
 		emissiveMapOffset: 'vec2',
+		emissiveMapMapRotation: 'number',
 		emissiveIntensity: 'number',
 		normalMap: 'texture',
 		normalMapTiling: 'vec2',
 		normalMapOffset: 'vec2',
+		normalMapRotation: 'number',
 		normalMapUv: 'number',
 		bumpiness: 'number',
 		normalDetailMap: 'texture',
 		normalDetailMapTiling: 'vec2',
 		normalDetailMapOffset: 'vec2',
+		normalDetailMapRotation: 'number',
 		normalDetailMapUv: 'number',
 		normalDetailMapBumpiness: 'number',
 		heightMap: 'texture',
@@ -12001,6 +12010,7 @@
 		heightMapUv: 'number',
 		heightMapTiling: 'vec2',
 		heightMapOffset: 'vec2',
+		heightMapRotation: 'number',
 		heightMapFactor: 'number',
 		alphaToCoverage: 'boolean',
 		alphaTest: 'number',
@@ -12013,6 +12023,7 @@
 		opacityMapUv: 'number',
 		opacityMapTiling: 'vec2',
 		opacityMapOffset: 'vec2',
+		opacityMapRotation: 'number',
 		opacityFadesSpecular: 'boolean',
 		reflectivity: 'number',
 		refraction: 'number',
@@ -12028,6 +12039,7 @@
 		lightMapUv: 'number',
 		lightMapTiling: 'vec2',
 		lightMapOffset: 'vec2',
+		lightMapRotation: 'number',
 		depthTest: 'boolean',
 		depthWrite: 'boolean',
 		depthBias: 'number',
@@ -12067,26 +12079,9 @@
 		}
 	}
 
-	var _propsSerial = [];
-	var _propsSerialDefaultVal = [];
-	var _propsInternalNull = [];
-	var _propsInternalVec3 = [];
-	var _prop2Uniform = {};
-	var _propsColor = [];
-
-	var Chunks = function () {
-		function Chunks() {}
-
-		var _proto = Chunks.prototype;
-
-		_proto.copy = function copy(from) {
-			for (var p in from) {
-				if (from.hasOwnProperty(p) && p !== 'copy') this[p] = from[p];
-			}
-		};
-
-		return Chunks;
-	}();
+	var _props = {};
+	var _uniforms = {};
+	var _propsSet = [];
 
 	var StandardMaterial = function (_Material) {
 		_inheritsLoose(StandardMaterial, _Material);
@@ -12095,6 +12090,7 @@
 			var _this;
 
 			_this = _Material.call(this) || this;
+			_this._dirtyShader = true;
 			_this._assetReferences = {};
 			_this._validator = null;
 			_this.shaderOptBuilder = new StandardMaterialOptionsBuilder();
@@ -12104,77 +12100,60 @@
 			return _this;
 		}
 
-		var _proto2 = StandardMaterial.prototype;
+		var _proto = StandardMaterial.prototype;
 
-		_proto2.reset = function reset() {
-			for (var i = 0; i < _propsSerial.length; i++) {
-				var defVal = _propsSerialDefaultVal[i];
-				this[_propsSerial[i]] = defVal ? defVal.clone ? defVal.clone() : defVal : defVal;
-			}
+		_proto.reset = function reset() {
+			var _this2 = this;
 
-			for (var _i = 0; _i < _propsInternalNull.length; _i++) {
-				this[_propsInternalNull[_i]] = null;
-			}
-
-			for (var _i2 = 0; _i2 < _propsInternalVec3.length; _i2++) {
-				this[_propsInternalVec3[_i2]] = new Float32Array(3);
-			}
-
-			this._chunks = new Chunks();
-			this.cubeMapMinUniform = new Float32Array(3);
-			this.cubeMapMaxUniform = new Float32Array(3);
+			Object.keys(_props).forEach(function (name) {
+				_this2["_" + name] = _props[name].value();
+			});
+			this._chunks = {};
+			this._uniformCache = {};
 		};
 
-		_proto2.clone = function clone() {
+		_proto.clone = function clone() {
+			var _this3 = this;
+
 			var clone = new StandardMaterial();
 
 			this._cloneInternal(clone);
 
-			for (var i = 0; i < _propsSerial.length; i++) {
-				var pname = _propsSerial[i];
+			Object.keys(_props).forEach(function (k) {
+				clone[k] = _this3[k];
+			});
 
-				if (this[pname] !== undefined) {
-					if (this[pname] && this[pname].copy) {
-						if (clone[pname]) {
-							clone[pname].copy(this[pname]);
-						} else {
-							clone[pname] = this[pname].clone();
-						}
-					} else {
-						clone[pname] = this[pname];
-					}
-				}
+			for (var p in this._chunks) {
+				if (this._chunks.hasOwnProperty(p)) clone._chunks[p] = this._chunks[p];
 			}
 
 			return clone;
 		};
 
-		_proto2._updateMapTransform = function _updateMapTransform(transform, tiling, offset) {
-			if (tiling.x === 1 && tiling.y === 1 && offset.x === 0 && offset.y === 0) {
-				return null;
-			}
-
-			transform = transform || new Vec4();
-			transform.set(tiling.x, tiling.y, offset.x, 1.0 - tiling.y - offset.y);
-			return transform;
-		};
-
-		_proto2._setParameter = function _setParameter(name, value) {
-			if (!this.parameters[name]) this._propsSet.push(name);
+		_proto._setParameter = function _setParameter(name, value) {
+			if (!this.parameters[name]) _propsSet.push(name);
 			this.setParameter(name, value);
 		};
 
-		_proto2._clearParameters = function _clearParameters() {
-			var props = this._propsSet;
+		_proto._setParameters = function _setParameters(parameters) {
+			var _this4 = this;
 
-			for (var i = 0; i < props.length; i++) {
-				delete this.parameters[props[i]];
-			}
-
-			this._propsSet = [];
+			parameters.forEach(function (v) {
+				_this4._setParameter(v.name, v.value);
+			});
 		};
 
-		_proto2._updateMap = function _updateMap(p) {
+		_proto._clearParameters = function _clearParameters() {
+			var _this5 = this;
+
+			_propsSet.forEach(function (p) {
+				delete _this5.parameters[p];
+			});
+
+			_propsSet.length = 0;
+		};
+
+		_proto._updateMap = function _updateMap(p) {
 			var mname = p + "Map";
 			var map = this[mname];
 
@@ -12182,50 +12161,47 @@
 				this._setParameter("texture_" + mname, map);
 
 				var tname = mname + "Transform";
-				this[tname] = this._updateMapTransform(this[tname], this[mname + "Tiling"], this[mname + "Offset"]);
-				var transform = this[tname];
+				var uniform = this.getUniform(tname);
 
-				if (transform) {
-					var uname = mname + "TransformUniform";
-					var uniform = this[uname];
-
-					if (!uniform) {
-						uniform = new Float32Array(4);
-						this[uname] = uniform;
-					}
-
-					uniform[0] = transform.x;
-					uniform[1] = transform.y;
-					uniform[2] = transform.z;
-					uniform[3] = transform.w;
-
-					this._setParameter('texture_' + tname, uniform);
+				if (uniform) {
+					this._setParameters(uniform);
 				}
 			}
 		};
 
-		_proto2.getUniform = function getUniform(varName, value, changeMat) {
-			var func = _prop2Uniform[varName];
+		_proto._allocUniform = function _allocUniform(name, allocFunc) {
+			var uniform = this._uniformCache[name];
 
-			if (func) {
-				return func(this, value, changeMat);
+			if (!uniform) {
+				uniform = allocFunc();
+				this._uniformCache[name] = uniform;
 			}
 
-			return null;
+			return uniform;
 		};
 
-		_proto2.updateUniforms = function updateUniforms() {
+		_proto.getUniform = function getUniform(name, device, scene) {
+			return _uniforms[name](this, device, scene);
+		};
+
+		_proto.updateUniforms = function updateUniforms(device, scene) {
+			var _this6 = this;
+
+			var getUniform = function getUniform(name) {
+				return _this6.getUniform(name, device, scene);
+			};
+
 			this._clearParameters();
 
-			this._setParameter('material_ambient', this.ambientUniform);
+			this._setParameter('material_ambient', getUniform('ambient'));
 
 			if (!this.diffuseMap || this.diffuseTint) {
-				this._setParameter('material_diffuse', this.diffuseUniform);
+				this._setParameter('material_diffuse', getUniform('diffuse'));
 			}
 
 			if (!this.useMetalness) {
 				if (!this.specularMap || this.specularTint) {
-					this._setParameter('material_specular', this.specularUniform);
+					this._setParameter('material_specular', getUniform('specular'));
 				}
 			} else {
 				if (!this.metalnessMap || this.metalness < 1) {
@@ -12247,12 +12223,10 @@
 				this._setParameter('material_clearCoatBumpiness', this.clearCoatBumpiness);
 			}
 
-			var uniform = this.getUniform("shininess", this.shininess, true);
-
-			this._setParameter(uniform.name, uniform.value);
+			this._setParameter("material_shininess", getUniform('shininess'));
 
 			if (!this.emissiveMap || this.emissiveTint) {
-				this._setParameter('material_emissive', this.emissiveUniform);
+				this._setParameter('material_emissive', getUniform('emissive'));
 			}
 
 			if (this.emissiveMap) {
@@ -12276,7 +12250,7 @@
 			}
 
 			if (this.cubeMapProjection === CUBEPROJ_BOX) {
-				this._setParameter(this.getUniform("cubeMapProjectionBox", this.cubeMapProjectionBox, true));
+				this._setParameter(getUniform("cubeMapProjectionBox"));
 			}
 
 			for (var p in _matTex2D) {
@@ -12296,49 +12270,11 @@
 			}
 
 			if (this.heightMap) {
-				uniform = this.getUniform('heightMapFactor', this.heightMapFactor, true);
-
-				this._setParameter(uniform.name, uniform.value);
+				this._setParameter('material_heightMapFactor', getUniform('heightMapFactor'));
 			}
 
 			if (this.cubeMap) {
 				this._setParameter('texture_cubeMap', this.cubeMap);
-			}
-
-			if (this.prefilteredCubeMap128) {
-				this._setParameter('texture_prefilteredCubeMap128', this.prefilteredCubeMap128);
-			} else if (this._scene && this._scene._skyboxPrefiltered[0]) {
-				this._setParameter('texture_prefilteredCubeMap128', this._scene._skyboxPrefiltered[0]);
-			}
-
-			if (this.prefilteredCubeMap64) {
-				this._setParameter('texture_prefilteredCubeMap64', this.prefilteredCubeMap64);
-			} else if (this._scene && this._scene._skyboxPrefiltered[1]) {
-				this._setParameter('texture_prefilteredCubeMap64', this._scene._skyboxPrefiltered[1]);
-			}
-
-			if (this.prefilteredCubeMap32) {
-				this._setParameter('texture_prefilteredCubeMap32', this.prefilteredCubeMap32);
-			} else if (this._scene && this._scene._skyboxPrefiltered[2]) {
-				this._setParameter('texture_prefilteredCubeMap32', this._scene._skyboxPrefiltered[2]);
-			}
-
-			if (this.prefilteredCubeMap16) {
-				this._setParameter('texture_prefilteredCubeMap16', this.prefilteredCubeMap16);
-			} else if (this._scene && this._scene._skyboxPrefiltered[3]) {
-				this._setParameter('texture_prefilteredCubeMap16', this._scene._skyboxPrefiltered[3]);
-			}
-
-			if (this.prefilteredCubeMap8) {
-				this._setParameter('texture_prefilteredCubeMap8', this.prefilteredCubeMap8);
-			} else if (this._scene && this._scene._skyboxPrefiltered[4]) {
-				this._setParameter('texture_prefilteredCubeMap8', this._scene._skyboxPrefiltered[4]);
-			}
-
-			if (this.prefilteredCubeMap4) {
-				this._setParameter('texture_prefilteredCubeMap4', this.prefilteredCubeMap4);
-			} else if (this._scene && this._scene._skyboxPrefiltered[5]) {
-				this._setParameter('texture_prefilteredCubeMap4', this._scene._skyboxPrefiltered[5]);
 			}
 
 			if (this.sphereMap) {
@@ -12351,49 +12287,13 @@
 
 			this._setParameter('material_reflectivity', this.reflectivity);
 
-			if (this.dirtyShader || !this._scene) {
+			if (this._dirtyShader) {
 				this.shader = null;
 				this.clearVariants();
 			}
-
-			this._processColor();
 		};
 
-		_proto2._processColor = function _processColor() {
-			if (!this.dirtyColor) return;
-			if (!this._scene && this.useGammaTonemap) return;
-			var gammaCorrection = false;
-			if (this.useGammaTonemap) gammaCorrection = this._scene.gammaCorrection;
-
-			for (var i = 0; i < _propsColor.length; i++) {
-				var clr = this["_" + _propsColor[i]];
-				var arr = this[_propsColor[i] + "Uniform"];
-
-				if (gammaCorrection) {
-					arr[0] = Math.pow(clr.r, 2.2);
-					arr[1] = Math.pow(clr.g, 2.2);
-					arr[2] = Math.pow(clr.b, 2.2);
-				} else {
-					arr[0] = clr.r;
-					arr[1] = clr.g;
-					arr[2] = clr.b;
-				}
-			}
-
-			for (var c = 0; c < 3; c++) {
-				this.emissiveUniform[c] *= this.emissiveIntensity;
-			}
-
-			this.dirtyColor = false;
-		};
-
-		_proto2.updateShader = function updateShader(device, scene, objDefs, staticLightList, pass, sortedLights) {
-			if (!this._colorProcessed && this._scene) {
-				this._colorProcessed = true;
-
-				this._processColor();
-			}
-
+		_proto.updateLightingUniforms = function updateLightingUniforms(device, scene) {
 			var globalSky128, globalSky64, globalSky32, globalSky16, globalSky8, globalSky4;
 
 			if (this.useSkybox) {
@@ -12434,6 +12334,8 @@
 					if (prefilteredCubeMap128._levels.length < 6) {
 						if (allMips) {
 							this._setParameter('texture_prefilteredCubeMap128', prefilteredCubeMap128);
+						} else {
+							console.log("Can't use prefiltered cubemap: " + allMips + ", " + device.useTexCubeLod + ", " + prefilteredCubeMap128._levels);
 						}
 					} else {
 						this._setParameter('texture_prefilteredCubeMap128', prefilteredCubeMap128);
@@ -12450,13 +12352,19 @@
 					this._setParameter('texture_prefilteredCubeMap8', prefilteredCubeMap8);
 
 					this._setParameter('texture_prefilteredCubeMap4', prefilteredCubeMap4);
+				} else {
+					console.log("Can't use prefiltered cubemap: " + allMips + ", " + device.useTexCubeLod + ", " + prefilteredCubeMap128._levels);
 				}
 
 				if (this.useSkybox && !scene.skyboxRotation.equals(Quat.IDENTITY) && scene._skyboxRotationMat3) {
 					this._setParameter('cubeMapRotationMatrix', scene._skyboxRotationMat3.data);
 				}
 			}
+		};
 
+		_proto.updateShader = function updateShader(device, scene, objDefs, staticLightList, pass, sortedLights) {
+			this.updateLightingUniforms(device, scene);
+			var prefilteredCubeMap128 = this.prefilteredCubeMap128 || this.useSkybox && scene._skyboxPrefiltered[0];
 			var minimalOptions = pass > SHADER_FORWARDHDR && pass <= SHADER_PICK;
 			var options = minimalOptions ? standard.optionsContextMin : standard.optionsContext;
 			if (minimalOptions) this.shaderOptBuilder.updateMinRef(options, device, scene, this, objDefs, staticLightList, pass, sortedLights, prefilteredCubeMap128);else this.shaderOptBuilder.updateRef(options, device, scene, this, objDefs, staticLightList, pass, sortedLights, prefilteredCubeMap128);
@@ -12473,10 +12381,10 @@
 				this.variants[0] = this.shader;
 			}
 
-			this.dirtyShader = false;
+			this._dirtyShader = false;
 		};
 
-		_proto2.destroy = function destroy() {
+		_proto.destroy = function destroy() {
 			for (var asset in this._assetReferences) {
 				this._assetReferences[asset]._unbind();
 			}
@@ -12493,311 +12401,221 @@
 	StandardMaterial.TEXTURE_PARAMETERS = standardMaterialTextureParameters;
 	StandardMaterial.CUBEMAP_PARAMETERS = standardMaterialCubemapParameters;
 
-	function _defineTex2D(obj, name, uv, channels, defChannel, vertexColor, detailMode) {
-		var privMap = "_" + name + "Map";
-		var privMapTiling = privMap + "Tiling";
-		var privMapOffset = privMap + "Offset";
-		var mapTransform = privMap.substring(1) + "Transform";
-		var mapTransformUniform = mapTransform + "Uniform";
-		var privMapUv = privMap + "Uv";
-		var privMapChannel = privMap + "Channel";
-		var privMapVertexColor = "_" + name + "VertexColor";
-		var privMapVertexColorChannel = "_" + name + "VertexColorChannel";
-		var privMapDetailMode = "_" + name + "Mode";
-		obj[privMap] = null;
-		obj[privMapTiling] = new Vec2(1, 1);
-		obj[privMapOffset] = new Vec2(0, 0);
-		obj[mapTransform] = null;
-		obj[mapTransformUniform] = null;
-		obj[privMapUv] = uv;
+	var defineUniform = function defineUniform(name, getUniformFunc) {
+		_uniforms[name] = getUniformFunc;
+	};
+
+	var defineProp = function defineProp(prop) {
+		var name = prop.name;
+		var internalName = "_" + name;
+		var defaultValue = prop.defaultValue;
+		var dirtyShaderFunc = prop.dirtyShaderFunc || null;
+		var getUniformFunc = prop.getUniformFunc || null;
+		var aggFuncs = {
+			equals: function equals(a, b) {
+				return a.equals(b);
+			},
+			clone: function clone(a) {
+				return a.clone();
+			},
+			copy: function copy(dest, src) {
+				return dest.copy(src);
+			}
+		};
+		var valueFuncs = {
+			equals: function equals(a, b) {
+				return a === b;
+			},
+			clone: function clone(a) {
+				return a;
+			},
+			copy: function copy(dest, src) {
+				return src;
+			}
+		};
+		var funcs = defaultValue && defaultValue.clone ? aggFuncs : valueFuncs;
+		var isColor = prop.default instanceof Color;
+		Object.defineProperty(StandardMaterial.prototype, name, {
+			get: function get() {
+				if (isColor) {
+					this._dirtyShader = true;
+				}
+
+				return this[internalName];
+			},
+			set: function set(value) {
+				var oldValue = this[internalName];
+
+				if (!funcs.equals(value, oldValue)) {
+					if (!this._dirtyShader) {
+						this._dirtyShader = dirtyShaderFunc ? dirtyShaderFunc(oldValue, value) : true;
+					}
+
+					this[internalName] = funcs.copy(oldValue, value);
+				}
+			}
+		});
+		_props[name] = {
+			value: function value() {
+				return funcs.clone(defaultValue);
+			}
+		};
+
+		if (getUniformFunc) {
+			defineUniform(name, getUniformFunc);
+		}
+	};
+
+	function _defineTex2D(name, uv, channels, defChannel, vertexColor, detailMode) {
+		_matTex2D[name] = channels;
+		defineProp({
+			name: name + "Map",
+			defaultValue: null,
+			dirtyShaderFunc: function dirtyShaderFunc(oldValue, newValue) {
+				return !!oldValue !== !!newValue || oldValue && (oldValue.type !== newValue.type || oldValue.fixCubemapSeams !== newValue.fixCubemapSeams || oldValue.format !== newValue.format);
+			}
+		});
+		defineProp({
+			name: name + "MapTiling",
+			defaultValue: new Vec2(1, 1)
+		});
+		defineProp({
+			name: name + "MapOffset",
+			defaultValue: new Vec2(0, 0)
+		});
+		defineProp({
+			name: name + "MapRotation",
+			defaultValue: 0
+		});
+		defineProp({
+			name: name + "MapUv",
+			defaultValue: uv
+		});
 
 		if (channels > 0) {
-			var channel = defChannel ? defChannel : channels > 1 ? "rgb" : "g";
-			obj[privMapChannel] = channel;
-			if (vertexColor) obj[privMapVertexColorChannel] = channel;
+			defineProp({
+				name: name + "MapChannel",
+				defaultValue: defChannel ? defChannel : channels > 1 ? "rgb" : "g"
+			});
 		}
 
-		if (vertexColor) obj[privMapVertexColor] = false;
-		if (detailMode) obj[privMapDetailMode] = DETAILMODE_MUL;
-		_matTex2D[name] = channels;
-		Object.defineProperty(StandardMaterial.prototype, privMap.substring(1), {
-			get: function get() {
-				return this[privMap];
-			},
-			set: function set(value) {
-				var oldVal = this[privMap];
-				if (!!oldVal ^ !!value) this.dirtyShader = true;
-
-				if (oldVal && value) {
-					if (oldVal.type !== value.type || oldVal.fixCubemapSeams !== value.fixCubemapSeams || oldVal.format !== value.format) {
-						this.dirtyShader = true;
-					}
-				}
-
-				this[privMap] = value;
-			}
-		});
-		var mapTiling = privMapTiling.substring(1);
-		var mapOffset = privMapOffset.substring(1);
-		Object.defineProperty(StandardMaterial.prototype, mapTiling, {
-			get: function get() {
-				return this[privMapTiling];
-			},
-			set: function set(value) {
-				this.dirtyShader = true;
-				this[privMapTiling] = value;
-			}
-		});
-
-		_prop2Uniform[mapTiling] = function (mat, val, changeMat) {
-			var tform = mat._updateMapTransform(changeMat ? mat[mapTransform] : null, val, mat[privMapOffset]);
-
-			return {
-				name: "texture_" + mapTransform,
-				value: tform.data
-			};
-		};
-
-		Object.defineProperty(StandardMaterial.prototype, mapOffset, {
-			get: function get() {
-				return this[privMapOffset];
-			},
-			set: function set(value) {
-				this.dirtyShader = true;
-				this[privMapOffset] = value;
-			}
-		});
-
-		_prop2Uniform[mapOffset] = function (mat, val, changeMat) {
-			var tform = mat._updateMapTransform(changeMat ? mat[mapTransform] : null, mat[privMapTiling], val);
-
-			return {
-				name: "texture_" + mapTransform,
-				value: tform.data
-			};
-		};
-
-		Object.defineProperty(StandardMaterial.prototype, privMapUv.substring(1), {
-			get: function get() {
-				return this[privMapUv];
-			},
-			set: function set(value) {
-				if (this[privMapUv] !== value) this.dirtyShader = true;
-				this[privMapUv] = value;
-			}
-		});
-		Object.defineProperty(StandardMaterial.prototype, privMapChannel.substring(1), {
-			get: function get() {
-				return this[privMapChannel];
-			},
-			set: function set(value) {
-				if (this[privMapChannel] !== value) this.dirtyShader = true;
-				this[privMapChannel] = value;
-			}
-		});
-
 		if (vertexColor) {
-			Object.defineProperty(StandardMaterial.prototype, privMapVertexColor.substring(1), {
-				get: function get() {
-					return this[privMapVertexColor];
-				},
-				set: function set(value) {
-					this.dirtyShader = true;
-					this[privMapVertexColor] = value;
-				}
+			defineProp({
+				name: name + "VertexColor",
+				defaultValue: false
 			});
-			Object.defineProperty(StandardMaterial.prototype, privMapVertexColorChannel.substring(1), {
-				get: function get() {
-					return this[privMapVertexColorChannel];
-				},
-				set: function set(value) {
-					if (this[privMapVertexColorChannel] !== value) this.dirtyShader = true;
-					this[privMapVertexColorChannel] = value;
-				}
-			});
+
+			if (channels > 0) {
+				defineProp({
+					name: name + "VertexColorChannel",
+					defaultValue: defChannel ? defChannel : channels > 1 ? "rgb" : "g"
+				});
+			}
 		}
 
 		if (detailMode) {
-			Object.defineProperty(StandardMaterial.prototype, privMapDetailMode.substring(1), {
-				get: function get() {
-					return this[privMapDetailMode];
-				},
-				set: function set(value) {
-					this.dirtyShader = true;
-					this[privMapDetailMode] = value;
-				}
+			defineProp({
+				name: name + "Mode",
+				defaultValue: DETAILMODE_MUL
 			});
 		}
 
-		_propsSerial.push(privMap.substring(1));
+		var mapTiling = name + "MapTiling";
+		var mapOffset = name + "MapOffset";
+		var mapRotation = name + "MapRotation";
+		var mapTransform = name + "MapTransform";
+		defineUniform(mapTransform, function (material, device, scene) {
+			var tiling = material[mapTiling];
+			var offset = material[mapOffset];
+			var rotation = material[mapRotation];
 
-		_propsSerial.push(privMapTiling.substring(1));
+			if (tiling.x === 1 && tiling.y === 1 && offset.x === 0 && offset.y === 0 && rotation === 0) {
+				return null;
+			}
 
-		_propsSerial.push(privMapOffset.substring(1));
+			var uniform = material._allocUniform(mapTransform, function () {
+				return [{
+					name: "texture_" + mapTransform + "0",
+					value: new Float32Array(3)
+				}, {
+					name: "texture_" + mapTransform + "1",
+					value: new Float32Array(3)
+				}];
+			});
 
-		_propsSerial.push(privMapUv.substring(1));
-
-		_propsSerial.push(privMapChannel.substring(1));
-
-		if (vertexColor) {
-			_propsSerial.push(privMapVertexColor.substring(1));
-
-			_propsSerial.push(privMapVertexColorChannel.substring(1));
-		}
-
-		if (detailMode) {
-			_propsSerial.push(privMapDetailMode.substring(1));
-		}
-
-		_propsInternalNull.push(mapTransform);
+			var cr = Math.cos(rotation * math.DEG_TO_RAD);
+			var sr = Math.sin(rotation * math.DEG_TO_RAD);
+			var uniform0 = uniform[0].value;
+			uniform0[0] = cr * tiling.x;
+			uniform0[1] = -sr * tiling.y;
+			uniform0[2] = offset.x;
+			var uniform1 = uniform[1].value;
+			uniform1[0] = sr * tiling.x;
+			uniform1[1] = cr * tiling.y;
+			uniform1[2] = 1.0 - tiling.y - offset.y;
+			return uniform;
+		});
 	}
 
-	function _defineColor(obj, name, defaultValue, hasMultiplier) {
-		var priv = "_" + name;
-		var uform = name + "Uniform";
-		var mult = name + "Intensity";
-		var pmult = "_" + mult;
-		obj[priv] = defaultValue;
-		obj[uform] = new Float32Array(3);
-		Object.defineProperty(StandardMaterial.prototype, name, {
-			get: function get() {
-				this.dirtyColor = true;
-				this.dirtyShader = true;
-				return this[priv];
-			},
-			set: function set(newValue) {
-				var oldValue = this[priv];
-				var wasRound = oldValue.r === 0 && oldValue.g === 0 && oldValue.b === 0 || oldValue.r === 1 && oldValue.g === 1 && oldValue.b === 1;
-				var isRound = newValue.r === 0 && newValue.g === 0 && newValue.b === 0 || newValue.r === 1 && newValue.g === 1 && newValue.b === 1;
-				if (wasRound ^ isRound) this.dirtyShader = true;
-				this.dirtyColor = true;
-				this[priv] = newValue;
-			}
-		});
+	function _defineColor(name, defaultValue, hasIntensity) {
+		var intensityName = name + "Intensity";
+		defineProp({
+			name: name,
+			defaultValue: defaultValue,
+			getUniformFunc: function getUniformFunc(material, device, scene) {
+				var uniform = material._allocUniform(name, function () {
+					return new Float32Array(3);
+				});
 
-		_propsSerial.push(name);
+				var color = material[name];
+				var intensity = hasIntensity ? material[intensityName] : 1.0;
+				var gamma = material.useGammaTonemap && scene.gammaCorrection;
 
-		_propsInternalVec3.push(uform);
-
-		_propsColor.push(name);
-
-		_prop2Uniform[name] = function (mat, val, changeMat) {
-			var arr = changeMat ? mat[uform] : new Float32Array(3);
-			var gammaCorrection = false;
-
-			if (mat.useGammaTonemap) {
-				var scene = mat._scene || getApplication().scene;
-				gammaCorrection = scene.gammaCorrection;
-			}
-
-			for (var c = 0; c < 3; c++) {
-				if (gammaCorrection) {
-					arr[c] = Math.pow(val.data[c], 2.2);
+				if (gamma) {
+					uniform[0] = Math.pow(color.r, 2.2) * intensity;
+					uniform[1] = Math.pow(color.g, 2.2) * intensity;
+					uniform[2] = Math.pow(color.b, 2.2) * intensity;
 				} else {
-					arr[c] = val.data[c];
+					uniform[0] = color.r * intensity;
+					uniform[1] = color.g * intensity;
+					uniform[2] = color.b * intensity;
 				}
 
-				if (hasMultiplier) arr[c] *= mat[pmult];
+				return uniform;
 			}
+		});
 
-			return {
-				name: "material_" + name,
-				value: arr
-			};
-		};
-
-		if (hasMultiplier) {
-			obj[pmult] = 1;
-			Object.defineProperty(StandardMaterial.prototype, mult, {
-				get: function get() {
-					return this[pmult];
-				},
-				set: function set(newValue) {
-					var oldValue = this[pmult];
-					var wasRound = oldValue === 0 || oldValue === 1;
-					var isRound = newValue === 0 || newValue === 1;
-					if (wasRound ^ isRound) this.dirtyShader = true;
-					this.dirtyColor = true;
-					this[pmult] = newValue;
-				}
+		if (hasIntensity) {
+			defineProp({
+				name: intensityName,
+				defaultValue: 1
 			});
-
-			_propsSerial.push(mult);
-
-			_prop2Uniform[mult] = function (mat, val, changeMat) {
-				var arr = changeMat ? mat[uform] : new Float32Array(3);
-				var gammaCorrection = false;
-
-				if (mat.useGammaTonemap) {
-					var scene = mat._scene || getApplication().scene;
-					gammaCorrection = scene.gammaCorrection;
-				}
-
-				for (var c = 0; c < 3; c++) {
-					if (gammaCorrection) {
-						arr[c] = Math.pow(mat[priv].data[c], 2.2);
-					} else {
-						arr[c] = mat[priv].data[c];
-					}
-
-					arr[c] *= mat[pmult];
-				}
-
-				return {
-					name: "material_" + name,
-					value: arr
-				};
-			};
 		}
 	}
 
-	function _defineFloat(obj, name, defaultValue, func) {
-		var priv = "_" + name;
-		obj[priv] = defaultValue;
-		Object.defineProperty(StandardMaterial.prototype, name, {
-			get: function get() {
-				return this[priv];
+	function _defineFloat(name, defaultValue, getUniformFunc) {
+		defineProp({
+			name: "" + name,
+			defaultValue: defaultValue,
+			dirtyShaderFunc: function dirtyShaderFunc(oldValue, newValue) {
+				return (oldValue === 0 || oldValue === 1) !== (newValue === 0 || newValue === 1);
 			},
-			set: function set(newValue) {
-				var oldValue = this[priv];
-				if (oldValue === newValue) return;
-				this[priv] = newValue;
-				var wasRound = oldValue === 0 || oldValue === 1;
-				var isRound = newValue === 0 || newValue === 1;
-				if (wasRound || isRound) this.dirtyShader = true;
-			}
+			getUniformFunc: getUniformFunc
 		});
-
-		_propsSerial.push(name);
-
-		_prop2Uniform[name] = func !== undefined ? func : function (mat, val, changeMat) {
-			return {
-				name: "material_" + name,
-				value: val
-			};
-		};
 	}
 
-	function _defineObject(obj, name, func) {
-		var priv = "_" + name;
-		obj[priv] = null;
-		Object.defineProperty(StandardMaterial.prototype, name, {
-			get: function get() {
-				return this[priv];
+	function _defineObject(name, getUniformFunc) {
+		defineProp({
+			name: name,
+			defaultValue: null,
+			dirtyShaderFunc: function dirtyShaderFunc(oldValue, newValue) {
+				return !!oldValue === !!newValue;
 			},
-			set: function set(value) {
-				var oldVal = this[priv];
-				if (!!oldVal ^ !!value) this.dirtyShader = true;
-				this[priv] = value;
-			}
+			getUniformFunc: getUniformFunc
 		});
-
-		_propsSerial.push(name);
-
-		_prop2Uniform[name] = func;
 	}
 
-	function _defineAlias(obj, newName, oldName) {
+	function _defineAlias(newName, oldName) {
 		Object.defineProperty(StandardMaterial.prototype, oldName, {
 			get: function get() {
 				return this[newName];
@@ -12808,262 +12626,227 @@
 		});
 	}
 
-	function _defineChunks(obj) {
+	function _defineChunks() {
 		Object.defineProperty(StandardMaterial.prototype, "chunks", {
 			get: function get() {
-				this.dirtyShader = true;
+				this._dirtyShader = true;
 				return this._chunks;
 			},
 			set: function set(value) {
-				this.dirtyShader = true;
+				this._dirtyShader = true;
 				this._chunks = value;
 			}
 		});
-
-		_propsSerial.push("chunks");
 	}
 
-	function _defineFlag(obj, name, defaultValue) {
-		var priv = "_" + name;
-		obj[priv] = defaultValue;
-		Object.defineProperty(StandardMaterial.prototype, name, {
-			get: function get() {
-				return this[priv];
-			},
-			set: function set(value) {
-				if (this[priv] !== value) this.dirtyShader = true;
-				this[priv] = value;
-			}
+	function _defineFlag(name, defaultValue) {
+		defineProp({
+			name: name,
+			defaultValue: defaultValue
 		});
-
-		_propsSerial.push(name);
 	}
 
-	function _defineMaterialProps(obj) {
-		obj.dirtyShader = true;
-		obj.dirtyColor = true;
-		obj._scene = null;
-		obj._colorProcessed = false;
+	function _defineMaterialProps() {
+		_defineColor("ambient", new Color(0.7, 0.7, 0.7));
 
-		_defineColor(obj, "ambient", new Color(0.7, 0.7, 0.7));
+		_defineColor("diffuse", new Color(1, 1, 1));
 
-		_defineColor(obj, "diffuse", new Color(1, 1, 1));
+		_defineColor("specular", new Color(0, 0, 0));
 
-		_defineColor(obj, "specular", new Color(0, 0, 0));
+		_defineColor("emissive", new Color(0, 0, 0), true);
 
-		_defineColor(obj, "emissive", new Color(0, 0, 0), true);
-
-		_defineFloat(obj, "shininess", 25, function (mat, shininess) {
-			var value;
-
-			if (mat.shadingModel === SPECULAR_PHONG) {
-				value = Math.pow(2, shininess * 0.01 * 11);
-			} else {
-				value = shininess * 0.01;
-			}
-
-			return {
-				name: "material_shininess",
-				value: value
-			};
+		_defineFloat("shininess", 25, function (material, device, scene) {
+			return material.shadingModel === SPECULAR_PHONG ? Math.pow(2, material.shininess * 0.01 * 11) : material.shininess * 0.01;
 		});
 
-		_defineFloat(obj, "heightMapFactor", 1, function (mat, height) {
-			return {
-				name: 'material_heightMapFactor',
-				value: height * 0.025
-			};
+		_defineFloat("heightMapFactor", 1, function (material, device, scene) {
+			return material.heightMapFactor * 0.025;
 		});
 
-		_defineFloat(obj, "opacity", 1);
+		_defineFloat("opacity", 1);
 
-		_defineFloat(obj, "alphaFade", 1);
+		_defineFloat("alphaFade", 1);
 
-		_defineFloat(obj, "alphaTest", 0);
+		_defineFloat("alphaTest", 0);
 
-		_defineFloat(obj, "bumpiness", 1);
+		_defineFloat("bumpiness", 1);
 
-		_defineFloat(obj, "normalDetailMapBumpiness", 1);
+		_defineFloat("normalDetailMapBumpiness", 1);
 
-		_defineFloat(obj, "reflectivity", 1);
+		_defineFloat("reflectivity", 1);
 
-		_defineFloat(obj, "occludeSpecularIntensity", 1);
+		_defineFloat("occludeSpecularIntensity", 1);
 
-		_defineFloat(obj, "refraction", 0);
+		_defineFloat("refraction", 0);
 
-		_defineFloat(obj, "refractionIndex", 1.0 / 1.5);
+		_defineFloat("refractionIndex", 1.0 / 1.5);
 
-		_defineFloat(obj, "metalness", 1);
+		_defineFloat("metalness", 1);
 
-		_defineFloat(obj, "anisotropy", 0);
+		_defineFloat("anisotropy", 0);
 
-		_defineFloat(obj, "clearCoat", 0);
+		_defineFloat("clearCoat", 0);
 
-		_defineFloat(obj, "clearCoatGlossiness", 1);
+		_defineFloat("clearCoatGlossiness", 1);
 
-		_defineFloat(obj, "clearCoatBumpiness", 1);
+		_defineFloat("clearCoatBumpiness", 1);
 
-		_defineFloat(obj, "aoUvSet", 0, null);
+		_defineFloat("aoUvSet", 0, null);
 
-		_defineObject(obj, "ambientSH", function (mat, val, changeMat) {
-			return {
-				name: "ambientSH[0]",
-				value: val
-			};
-		});
+		_defineObject("ambientSH");
 
-		_defineObject(obj, "cubeMapProjectionBox", function (mat, val, changeMat) {
-			var bmin = changeMat ? mat.cubeMapMinUniform : new Float32Array(3);
-			var bmax = changeMat ? mat.cubeMapMaxUniform : new Float32Array(3);
-			bmin[0] = val.center.x - val.halfExtents.x;
-			bmin[1] = val.center.y - val.halfExtents.y;
-			bmin[2] = val.center.z - val.halfExtents.z;
-			bmax[0] = val.center.x + val.halfExtents.x;
-			bmax[1] = val.center.y + val.halfExtents.y;
-			bmax[2] = val.center.z + val.halfExtents.z;
-			return [{
-				name: "envBoxMin",
-				value: bmin
-			}, {
-				name: "envBoxMax",
-				value: bmax
-			}];
+		_defineObject("cubeMapProjectionBox", function (material, device, scene) {
+			var uniform = material._allocUniform('cubeMapProjectionBox', function () {
+				return [{
+					name: 'envBoxMin',
+					value: new Float32Array(3)
+				}, {
+					name: 'envBoxMax',
+					value: new Float32Array(3)
+				}];
+			});
+
+			var bboxMin = material.cubeMapProjectionBox.getMin();
+			var minUniform = uniform[0].value;
+			minUniform[0] = bboxMin.x;
+			minUniform[1] = bboxMin.y;
+			minUniform[2] = bboxMin.z;
+			var bboxMax = material.cubeMapProjectionBox.getMax();
+			var maxUniform = uniform[1].value;
+			maxUniform[0] = bboxMax.x;
+			maxUniform[1] = bboxMax.y;
+			maxUniform[2] = bboxMax.z;
+			return uniform;
 		});
 
 		_defineChunks();
 
-		_defineFlag(obj, "ambientTint", false);
+		_defineFlag("ambientTint", false);
 
-		_defineFlag(obj, "diffuseTint", false);
+		_defineFlag("diffuseTint", false);
 
-		_defineFlag(obj, "specularTint", false);
+		_defineFlag("specularTint", false);
 
-		_defineFlag(obj, "emissiveTint", false);
+		_defineFlag("emissiveTint", false);
 
-		_defineFlag(obj, "fastTbn", false);
+		_defineFlag("fastTbn", false);
 
-		_defineFlag(obj, "specularAntialias", false);
+		_defineFlag("specularAntialias", false);
 
-		_defineFlag(obj, "useMetalness", false);
+		_defineFlag("useMetalness", false);
 
-		_defineFlag(obj, "enableGGXSpecular", false);
+		_defineFlag("enableGGXSpecular", false);
 
-		_defineFlag(obj, "occludeDirect", false);
+		_defineFlag("occludeDirect", false);
 
-		_defineFlag(obj, "normalizeNormalMap", true);
+		_defineFlag("normalizeNormalMap", true);
 
-		_defineFlag(obj, "conserveEnergy", true);
+		_defineFlag("conserveEnergy", true);
 
-		_defineFlag(obj, "opacityFadesSpecular", true);
+		_defineFlag("opacityFadesSpecular", true);
 
-		_defineFlag(obj, "occludeSpecular", SPECOCC_AO);
+		_defineFlag("occludeSpecular", SPECOCC_AO);
 
-		_defineFlag(obj, "shadingModel", SPECULAR_BLINN);
+		_defineFlag("shadingModel", SPECULAR_BLINN);
 
-		_defineFlag(obj, "fresnelModel", FRESNEL_SCHLICK);
+		_defineFlag("fresnelModel", FRESNEL_SCHLICK);
 
-		_defineFlag(obj, "cubeMapProjection", CUBEPROJ_NONE);
+		_defineFlag("cubeMapProjection", CUBEPROJ_NONE);
 
-		_defineFlag(obj, "customFragmentShader", null);
+		_defineFlag("customFragmentShader", null);
 
-		_defineFlag(obj, "forceFragmentPrecision", null);
+		_defineFlag("forceFragmentPrecision", null);
 
-		_defineFlag(obj, "useFog", true);
+		_defineFlag("useFog", true);
 
-		_defineFlag(obj, "useLighting", true);
+		_defineFlag("useLighting", true);
 
-		_defineFlag(obj, "useGammaTonemap", true);
+		_defineFlag("useGammaTonemap", true);
 
-		_defineFlag(obj, "useSkybox", true);
+		_defineFlag("useSkybox", true);
 
-		_defineFlag(obj, "forceUv1", false);
+		_defineFlag("forceUv1", false);
 
-		_defineFlag(obj, "pixelSnap", false);
+		_defineFlag("pixelSnap", false);
 
-		_defineFlag(obj, "twoSidedLighting", false);
+		_defineFlag("twoSidedLighting", false);
 
-		_defineFlag(obj, "nineSlicedMode", undefined);
+		_defineFlag("nineSlicedMode", undefined);
 
-		_defineTex2D(obj, "diffuse", 0, 3, "", true);
+		_defineTex2D("diffuse", 0, 3, "", true);
 
-		_defineTex2D(obj, "specular", 0, 3, "", true);
+		_defineTex2D("specular", 0, 3, "", true);
 
-		_defineTex2D(obj, "emissive", 0, 3, "", true);
+		_defineTex2D("emissive", 0, 3, "", true);
 
-		_defineTex2D(obj, "normal", 0, -1, "", false);
+		_defineTex2D("normal", 0, -1, "", false);
 
-		_defineTex2D(obj, "metalness", 0, 1, "", true);
+		_defineTex2D("metalness", 0, 1, "", true);
 
-		_defineTex2D(obj, "gloss", 0, 1, "", true);
+		_defineTex2D("gloss", 0, 1, "", true);
 
-		_defineTex2D(obj, "opacity", 0, 1, "a", true);
+		_defineTex2D("opacity", 0, 1, "a", true);
 
-		_defineTex2D(obj, "height", 0, 1, "", false);
+		_defineTex2D("height", 0, 1, "", false);
 
-		_defineTex2D(obj, "ao", 0, 1, "", true);
+		_defineTex2D("ao", 0, 1, "", true);
 
-		_defineTex2D(obj, "light", 1, 3, "", true);
+		_defineTex2D("light", 1, 3, "", true);
 
-		_defineTex2D(obj, "msdf", 0, 3, "", false);
+		_defineTex2D("msdf", 0, 3, "", false);
 
-		_defineTex2D(obj, "diffuseDetail", 0, 3, "", false, true);
+		_defineTex2D("diffuseDetail", 0, 3, "", false, true);
 
-		_defineTex2D(obj, "normalDetail", 0, -1, "", false);
+		_defineTex2D("normalDetail", 0, -1, "", false);
 
-		_defineTex2D(obj, "clearCoat", 0, 1, "", true);
+		_defineTex2D("clearCoat", 0, 1, "", true);
 
-		_defineTex2D(obj, "clearCoatGloss", 0, 1, "", true);
+		_defineTex2D("clearCoatGloss", 0, 1, "", true);
 
-		_defineTex2D(obj, "clearCoatNormal", 0, -1, "", false);
+		_defineTex2D("clearCoatNormal", 0, -1, "", false);
 
-		_defineObject(obj, "cubeMap");
+		_defineObject("cubeMap");
 
-		_defineObject(obj, "sphereMap");
+		_defineObject("sphereMap");
 
-		_defineObject(obj, "dpAtlas");
+		_defineObject("dpAtlas");
 
-		_defineObject(obj, "prefilteredCubeMap128");
+		_defineObject("prefilteredCubeMap128");
 
-		_defineObject(obj, "prefilteredCubeMap64");
+		_defineObject("prefilteredCubeMap64");
 
-		_defineObject(obj, "prefilteredCubeMap32");
+		_defineObject("prefilteredCubeMap32");
 
-		_defineObject(obj, "prefilteredCubeMap16");
+		_defineObject("prefilteredCubeMap16");
 
-		_defineObject(obj, "prefilteredCubeMap8");
+		_defineObject("prefilteredCubeMap8");
 
-		_defineObject(obj, "prefilteredCubeMap4");
+		_defineObject("prefilteredCubeMap4");
 
-		_defineAlias(obj, "diffuseTint", "diffuseMapTint");
+		_defineAlias("diffuseTint", "diffuseMapTint");
 
-		_defineAlias(obj, "specularTint", "specularMapTint");
+		_defineAlias("specularTint", "specularMapTint");
 
-		_defineAlias(obj, "emissiveTint", "emissiveMapTint");
+		_defineAlias("emissiveTint", "emissiveMapTint");
 
-		_defineAlias(obj, "aoVertexColor", "aoMapVertexColor");
+		_defineAlias("aoVertexColor", "aoMapVertexColor");
 
-		_defineAlias(obj, "diffuseVertexColor", "diffuseMapVertexColor");
+		_defineAlias("diffuseVertexColor", "diffuseMapVertexColor");
 
-		_defineAlias(obj, "specularVertexColor", "specularMapVertexColor");
+		_defineAlias("specularVertexColor", "specularMapVertexColor");
 
-		_defineAlias(obj, "emissiveVertexColor", "emissiveMapVertexColor");
+		_defineAlias("emissiveVertexColor", "emissiveMapVertexColor");
 
-		_defineAlias(obj, "metalnessVertexColor", "metalnessMapVertexColor");
+		_defineAlias("metalnessVertexColor", "metalnessMapVertexColor");
 
-		_defineAlias(obj, "glossVertexColor", "glossMapVertexColor");
+		_defineAlias("glossVertexColor", "glossMapVertexColor");
 
-		_defineAlias(obj, "opacityVertexColor", "opacityMapVertexColor");
+		_defineAlias("opacityVertexColor", "opacityMapVertexColor");
 
-		_defineAlias(obj, "lightVertexColor", "lightMapVertexColor");
-
-		for (var i = 0; i < _propsSerial.length; i++) {
-			_propsSerialDefaultVal[i] = obj[_propsSerial[i]];
-		}
-
-		obj._propsSet = [];
+		_defineAlias("lightVertexColor", "lightMapVertexColor");
 	}
 
-	_defineMaterialProps(StandardMaterial.prototype);
+	_defineMaterialProps();
 
 	var ProgramLibrary = function () {
 		function ProgramLibrary(device) {
@@ -13124,6 +12907,7 @@
 
 				this.storeNewProgram(name, options);
 				if (options.lights) options.lights = lights;
+				if (this._precached) console.warn("ProgramLibrary#getProgram: Cache miss for shader", name, "key", key, "after shaders precaching");
 				var shaderDefinition = generator.createShaderDefinition(gd, options);
 				shader = this._cache[key] = new Shader(gd, shaderDefinition);
 			}
@@ -13412,6 +13196,7 @@
 
 		if (gl.getError() !== gl.NO_ERROR) {
 			result = false;
+			console.log("Above error related to HALF_FLOAT_OES can be ignored, it was triggered by testing half float texture support");
 		}
 
 		gl.bindTexture(gl.TEXTURE_2D, null);
@@ -14221,15 +14006,19 @@
 
 			switch (status) {
 				case gl.FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
+					console.error("ERROR: FRAMEBUFFER_INCOMPLETE_ATTACHMENT");
 					break;
 
 				case gl.FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
+					console.error("ERROR: FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT");
 					break;
 
 				case gl.FRAMEBUFFER_INCOMPLETE_DIMENSIONS:
+					console.error("ERROR: FRAMEBUFFER_INCOMPLETE_DIMENSIONS");
 					break;
 
 				case gl.FRAMEBUFFER_UNSUPPORTED:
+					console.error("ERROR: FRAMEBUFFER_UNSUPPORTED");
 					break;
 
 				case gl.FRAMEBUFFER_COMPLETE:
@@ -15599,14 +15388,17 @@
 			var definition = shader.definition;
 
 			if (!gl.getShaderParameter(glVertexShader, gl.COMPILE_STATUS)) {
+				console.error("Failed to compile vertex shader:\n\n" + this._addLineNumbers(definition.vshader) + "\n\n" + gl.getShaderInfoLog(glVertexShader));
 				return false;
 			}
 
 			if (!gl.getShaderParameter(glFragmentShader, gl.COMPILE_STATUS)) {
+				console.error("Failed to compile fragment shader:\n\n" + this._addLineNumbers(definition.fshader) + "\n\n" + gl.getShaderInfoLog(glFragmentShader));
 				return false;
 			}
 
 			if (!gl.getProgramParameter(glProgram, gl.LINK_STATUS)) {
+				console.error("Failed to link shader program. Error: " + gl.getProgramInfoLog(glProgram));
 				return false;
 			}
 
@@ -15619,6 +15411,7 @@
 				location = gl.getAttribLocation(glProgram, info.name);
 
 				if (definition.attributes[info.name] === undefined) {
+					console.error("Vertex shader attribute \"" + info.name + "\" is not mapped to a semantic in shader definition.");
 				}
 
 				shaderInput = new ShaderInput(this, definition.attributes[info.name], this.pcUniformType[info.type], location);
@@ -18279,7 +18072,7 @@
 			return clone;
 		};
 
-		_proto.updateUniforms = function updateUniforms() {
+		_proto.updateUniforms = function updateUniforms(device, scene) {
 			this.clearParameters();
 			this.colorUniform[0] = this.color.r;
 			this.colorUniform[1] = this.color.g;
@@ -21721,7 +21514,7 @@
 				forwardRenderer.setSkinning(device, meshInstance, material);
 
 				if (material.dirty) {
-					material.updateUniforms();
+					material.updateUniforms(device, forwardRenderer.scene);
 					material.dirty = false;
 				}
 
@@ -22912,7 +22705,7 @@
 						this._materialSwitches++;
 
 						if (material.dirty) {
-							material.updateUniforms();
+							material.updateUniforms(device, scene);
 							material.dirty = false;
 						}
 
@@ -27164,6 +26957,7 @@
 			setProperty("numParticles", 1);
 
 			if (this.numParticles > graphicsDevice.maxTextureSize) {
+				console.warn("WARNING: can't create more than " + graphicsDevice.maxTextureSize + " particles on this device.");
 				this.numParticles = graphicsDevice.maxTextureSize;
 			}
 
@@ -27452,6 +27246,7 @@
 				var totalVertCount = this.numParticles * this.mesh.vertexBuffer.numVertices;
 
 				if (totalVertCount > 65535) {
+					console.warn("WARNING: particle system can't render mesh particles because numParticles * numVertices is more than 65k. Reverting to quad particles.");
 				} else {
 					this.useMesh = true;
 				}
@@ -28213,6 +28008,7 @@
 			var minorVersion = versions[1];
 
 			if (majorVersion !== 0 || minorVersion !== 1) {
+				console.warn("areaLightLuts asset version: " + majorVersion + "." + minorVersion + " is not supported in current engine version!");
 			} else {
 				var srcData1 = new Float32Array(resource, 4, 16384);
 				var srcData2 = new Float32Array(resource, 4 + 16384 * 4, 16384);
@@ -29099,6 +28895,7 @@
 			},
 			unpause: function unpause() {
 				if (this.source || !this.paused) {
+					console.warn('Call pause() before unpausing.');
 					return;
 				}
 
@@ -29481,6 +29278,7 @@
 					window.addEventListener('touchend', _this._unlock);
 				}
 			} else {
+				console.warn('No support for 3D audio found');
 			}
 
 			_this.listener = new Listener(_assertThisInitialized(_this));
@@ -30396,6 +30194,7 @@
 			this.renders = null;
 			this.skins = null;
 			this.lights = null;
+			this.cameras = null;
 		}
 
 		var _proto = GlbResources.prototype;
@@ -30775,7 +30574,7 @@
 		return result;
 	};
 
-	var createVertexBufferInternal = function createVertexBufferInternal(device, sourceDesc, disableFlipV) {
+	var createVertexBufferInternal = function createVertexBufferInternal(device, sourceDesc, flipV) {
 		var positionDesc = sourceDesc[SEMANTIC_POSITION];
 
 		if (!positionDesc) {
@@ -30850,7 +30649,7 @@
 			}
 		}
 
-		if (!disableFlipV) {
+		if (flipV) {
 			flipTexCoordVs(vertexBuffer);
 		}
 
@@ -30858,7 +30657,7 @@
 		return vertexBuffer;
 	};
 
-	var createVertexBuffer = function createVertexBuffer(device, attributes, indices, accessors, bufferViews, disableFlipV, vertexBufferDict) {
+	var createVertexBuffer = function createVertexBuffer(device, attributes, indices, accessors, bufferViews, flipV, vertexBufferDict) {
 		var useAttributes = {};
 		var attribIds = [];
 
@@ -30899,14 +30698,14 @@
 				generateNormals(sourceDesc, indices);
 			}
 
-			vb = createVertexBufferInternal(device, sourceDesc, disableFlipV);
+			vb = createVertexBufferInternal(device, sourceDesc, flipV);
 			vertexBufferDict[vbKey] = vb;
 		}
 
 		return vb;
 	};
 
-	var createVertexBufferDraco = function createVertexBufferDraco(device, outputGeometry, extDraco, decoder, decoderModule, indices, disableFlipV) {
+	var createVertexBufferDraco = function createVertexBufferDraco(device, outputGeometry, extDraco, decoder, decoderModule, indices, flipV) {
 		var numPoints = outputGeometry.num_points();
 
 		var extractDracoAttributeInfo = function extractDracoAttributeInfo(uniqueId) {
@@ -30979,7 +30778,7 @@
 			generateNormals(sourceDesc, indices);
 		}
 
-		return createVertexBufferInternal(device, sourceDesc, disableFlipV);
+		return createVertexBufferInternal(device, sourceDesc, flipV);
 	};
 
 	var createSkin = function createSkin(device, gltfSkin, accessors, bufferViews, nodes, glbSkins) {
@@ -31029,7 +30828,7 @@
 	var tempMat = new Mat4();
 	var tempVec = new Vec3();
 
-	var createMesh = function createMesh(device, gltfMesh, accessors, bufferViews, callback, disableFlipV, vertexBufferDict) {
+	var createMesh = function createMesh(device, gltfMesh, accessors, bufferViews, callback, flipV, vertexBufferDict) {
 		var meshes = [];
 		gltfMesh.primitives.forEach(function (primitive) {
 			var primitiveType, vertexBuffer, numIndices;
@@ -31094,7 +30893,7 @@
 								decoderModule._free(ptr);
 							}
 
-							vertexBuffer = createVertexBufferDraco(device, outputGeometry, extDraco, decoder, decoderModule, indices, disableFlipV);
+							vertexBuffer = createVertexBufferDraco(device, outputGeometry, extDraco, decoder, decoderModule, indices, flipV);
 							decoderModule.destroy(outputGeometry);
 							decoderModule.destroy(decoder);
 							decoderModule.destroy(buffer);
@@ -31106,7 +30905,7 @@
 
 			if (!vertexBuffer) {
 				indices = primitive.hasOwnProperty('indices') ? getAccessorData(accessors[primitive.indices], bufferViews) : null;
-				vertexBuffer = createVertexBuffer(device, primitive.attributes, indices, accessors, bufferViews, disableFlipV, vertexBufferDict);
+				vertexBuffer = createVertexBuffer(device, primitive.attributes, indices, accessors, bufferViews, flipV, vertexBufferDict);
 				primitiveType = getPrimitiveType(primitive);
 			}
 
@@ -31192,14 +30991,16 @@
 		return meshes;
 	};
 
-	var createMaterial = function createMaterial(gltfMaterial, textures, disableFlipV) {
+	var createMaterial = function createMaterial(gltfMaterial, textures, flipV) {
 		var glossChunk = ["#ifdef MAPFLOAT", "uniform float material_shininess;", "#endif", "", "#ifdef MAPTEXTURE", "uniform sampler2D texture_glossMap;", "#endif", "", "void getGlossiness() {", "		dGlossiness = 1.0;", "", "#ifdef MAPFLOAT", "		dGlossiness *= material_shininess;", "#endif", "", "#ifdef MAPTEXTURE", "		dGlossiness *= texture2D(texture_glossMap, $UV).$CH;", "#endif", "", "#ifdef MAPVERTEX", "		dGlossiness *= saturate(vVertexColor.$VC);", "#endif", "", "		dGlossiness = 1.0 - dGlossiness;", "", "		dGlossiness += 0.0000001;", "}"].join('\n');
 		var specularChunk = ["#ifdef MAPCOLOR", "uniform vec3 material_specular;", "#endif", "", "#ifdef MAPTEXTURE", "uniform sampler2D texture_specularMap;", "#endif", "", "void getSpecularity() {", "		dSpecularity = vec3(1.0);", "", "		#ifdef MAPCOLOR", "				dSpecularity *= material_specular;", "		#endif", "", "		#ifdef MAPTEXTURE", "				vec3 srgb = texture2D(texture_specularMap, $UV).$CH;", "				dSpecularity *= vec3(pow(srgb.r, 2.2), pow(srgb.g, 2.2), pow(srgb.b, 2.2));", "		#endif", "", "		#ifdef MAPVERTEX", "				dSpecularity *= saturate(vVertexColor.$VC);", "		#endif", "}"].join('\n');
 		var clearCoatGlossChunk = ["#ifdef MAPFLOAT", "uniform float material_clearCoatGlossiness;", "#endif", "", "#ifdef MAPTEXTURE", "uniform sampler2D texture_clearCoatGlossMap;", "#endif", "", "void getClearCoatGlossiness() {", "		ccGlossiness = 1.0;", "", "#ifdef MAPFLOAT", "		ccGlossiness *= material_clearCoatGlossiness;", "#endif", "", "#ifdef MAPTEXTURE", "		ccGlossiness *= texture2D(texture_clearCoatGlossMap, $UV).$CH;", "#endif", "", "#ifdef MAPVERTEX", "		ccGlossiness *= saturate(vVertexColor.$VC);", "#endif", "", "		ccGlossiness = 1.0 - ccGlossiness;", "", "		ccGlossiness += 0.0000001;", "}"].join('\n');
-		var uvONE = [1, 1];
-		var uvZERO = [0, 0];
+		var zeros = [0, 0];
+		var ones = [1, 1];
 
 		var extractTextureTransform = function extractTextureTransform(source, material, maps) {
+			var _source$extensions;
+
 			var map;
 			var texCoord = source.texCoord;
 
@@ -31209,27 +31010,20 @@
 				}
 			}
 
-			var scale = uvONE;
-			var offset = uvZERO;
-			var extensions = source.extensions;
+			var textureTransform = (_source$extensions = source.extensions) == null ? void 0 : _source$extensions.KHR_texture_transform;
 
-			if (extensions) {
-				var textureTransformData = extensions.KHR_texture_transform;
+			if (textureTransform) {
+				var offset = textureTransform.offset || zeros;
+				var scale = textureTransform.scale || ones;
+				var rotation = textureTransform.rotation ? -textureTransform.rotation * math.RAD_TO_DEG : 0;
+				var tilingVec = new Vec2(scale[0], scale[1]);
+				var offsetVec = new Vec2(offset[0], 1.0 - scale[1] - offset[1]);
 
-				if (textureTransformData) {
-					if (textureTransformData.scale) {
-						scale = textureTransformData.scale;
-					}
-
-					if (textureTransformData.offset) {
-						offset = textureTransformData.offset;
-					}
+				for (map = 0; map < maps.length; ++map) {
+					material[maps[map] + "MapTiling"] = tilingVec;
+					material[maps[map] + "MapOffset"] = offsetVec;
+					material[maps[map] + "MapRotation"] = rotation;
 				}
-			}
-
-			for (map = 0; map < maps.length; ++map) {
-				material[maps[map] + 'MapTiling'] = new Vec2(scale[0], scale[1]);
-				material[maps[map] + 'MapOffset'] = new Vec2(offset[0], disableFlipV ? 1.0 - scale[1] - offset[1] : offset[1]);
 			}
 		};
 
@@ -31608,8 +31402,44 @@
 		return entity;
 	};
 
+	var createCamera = function createCamera(gltfCamera, node) {
+		var projection = gltfCamera.type === "orthographic" ? PROJECTION_ORTHOGRAPHIC : PROJECTION_PERSPECTIVE;
+		var gltfProperties = projection === PROJECTION_ORTHOGRAPHIC ? gltfCamera.orthographic : gltfCamera.perspective;
+		var componentData = {
+			enabled: false,
+			projection: projection,
+			nearClip: gltfProperties.znear,
+			aspectRatioMode: ASPECT_AUTO
+		};
+
+		if (gltfProperties.zfar) {
+			componentData.farClip = gltfProperties.zfar;
+		}
+
+		if (projection === PROJECTION_ORTHOGRAPHIC) {
+			componentData.orthoHeight = 0.5 * gltfProperties.ymag;
+
+			if (gltfProperties.ymag) {
+				componentData.aspectRatioMode = ASPECT_MANUAL;
+				componentData.aspectRatio = gltfProperties.xmag / gltfProperties.ymag;
+			}
+		} else {
+			componentData.fov = gltfProperties.yfov * math.RAD_TO_DEG;
+
+			if (gltfProperties.aspectRatio) {
+				componentData.aspectRatioMode = ASPECT_MANUAL;
+				componentData.aspectRatio = gltfProperties.aspectRatio;
+			}
+		}
+
+		var cameraEntity = new Entity(gltfCamera.name);
+		cameraEntity.addComponent("camera", componentData);
+		return cameraEntity;
+	};
+
 	var createLight = function createLight(gltfLight, node) {
 		var lightProps = {
+			enabled: false,
 			type: gltfLight.type === "point" ? "omni" : gltfLight.type,
 			color: gltfLight.hasOwnProperty('color') ? new Color(gltfLight.color) : Color.WHITE,
 			range: gltfLight.hasOwnProperty('range') ? gltfLight.range : Number.MAX_VALUE,
@@ -31622,10 +31452,10 @@
 			lightProps.outerConeAngle = gltfLight.spot.hasOwnProperty('outerConeAngle') ? gltfLight.spot.outerConeAngle * math.RAD_TO_DEG : Math.PI / 4;
 		}
 
-		var lightNode = new Entity(node.name);
-		lightNode.rotateLocal(90, 0, 0);
-		lightNode.addComponent("light", lightProps);
-		return lightNode;
+		var lightEntity = new Entity(node.name);
+		lightEntity.rotateLocal(90, 0, 0);
+		lightEntity.addComponent("light", lightProps);
+		return lightEntity;
 	};
 
 	var createSkins = function createSkins(device, gltf, nodes, bufferViews) {
@@ -31639,18 +31469,18 @@
 		});
 	};
 
-	var createMeshes = function createMeshes(device, gltf, bufferViews, callback, disableFlipV) {
+	var createMeshes = function createMeshes(device, gltf, bufferViews, callback, flipV) {
 		if (!gltf.hasOwnProperty('meshes') || gltf.meshes.length === 0 || !gltf.hasOwnProperty('accessors') || gltf.accessors.length === 0 || !gltf.hasOwnProperty('bufferViews') || gltf.bufferViews.length === 0) {
 			return [];
 		}
 
 		var vertexBufferDict = {};
 		return gltf.meshes.map(function (gltfMesh) {
-			return createMesh(device, gltfMesh, gltf.accessors, bufferViews, callback, disableFlipV, vertexBufferDict);
+			return createMesh(device, gltfMesh, gltf.accessors, bufferViews, callback, flipV, vertexBufferDict);
 		});
 	};
 
-	var createMaterials = function createMaterials(gltf, textures, options, disableFlipV) {
+	var createMaterials = function createMaterials(gltf, textures, options, flipV) {
 		if (!gltf.hasOwnProperty('materials') || gltf.materials.length === 0) {
 			return [];
 		}
@@ -31663,7 +31493,7 @@
 				preprocess(gltfMaterial);
 			}
 
-			var material = process(gltfMaterial, textures, disableFlipV);
+			var material = process(gltfMaterial, textures, flipV);
 
 			if (postprocess) {
 				postprocess(gltfMaterial, material);
@@ -31759,6 +31589,40 @@
 		return scenes;
 	};
 
+	var createCameras = function createCameras(gltf, nodes, options) {
+		var cameras = null;
+
+		if (gltf.hasOwnProperty('nodes') && gltf.hasOwnProperty('cameras') && gltf.cameras.length > 0) {
+			var preprocess = options && options.camera && options.camera.preprocess;
+			var process = options && options.camera && options.camera.process || createCamera;
+			var postprocess = options && options.camera && options.camera.postprocess;
+			gltf.nodes.forEach(function (gltfNode, nodeIndex) {
+				if (gltfNode.hasOwnProperty('camera')) {
+					var gltfCamera = gltf.cameras[gltfNode.camera];
+
+					if (gltfCamera) {
+						if (preprocess) {
+							preprocess(gltfCamera);
+						}
+
+						var camera = process(gltfCamera, nodes[nodeIndex]);
+
+						if (postprocess) {
+							postprocess(gltfCamera, camera);
+						}
+
+						if (camera) {
+							if (!cameras) cameras = new Map();
+							cameras.set(gltfNode, camera);
+						}
+					}
+				}
+			});
+		}
+
+		return cameras;
+	};
+
 	var createLights = function createLights(gltf, nodes, options) {
 		var lights = null;
 
@@ -31817,15 +31681,16 @@
 			preprocess(gltf);
 		}
 
-		var disableFlipV = !(gltf.asset && gltf.asset.generator === 'PlayCanvas');
+		var flipV = gltf.asset && gltf.asset.generator === 'PlayCanvas';
 		var nodes = createNodes(gltf, options);
 		var scenes = createScenes(gltf, nodes);
 		var lights = createLights(gltf, nodes, options);
+		var cameras = createCameras(gltf, nodes, options);
 		var animations = createAnimations(gltf, nodes, bufferViews, options);
 		var materials = createMaterials(gltf, textureAssets.map(function (textureAsset) {
 			return textureAsset.resource;
-		}), options, disableFlipV);
-		var meshes = createMeshes(device, gltf, bufferViews, callback, disableFlipV);
+		}), options, flipV);
+		var meshes = createMeshes(device, gltf, bufferViews, callback, flipV);
 		var skins = createSkins(device, gltf, nodes, bufferViews);
 		var renders = [];
 
@@ -31844,6 +31709,7 @@
 		result.renders = renders;
 		result.skins = skins;
 		result.lights = lights;
+		result.cameras = cameras;
 
 		if (postprocess) {
 			postprocess(gltf, result);
@@ -31903,6 +31769,8 @@
 		}
 	};
 
+	var gltfTextureUniqueId = 0;
+
 	var loadImageAsync = function loadImageAsync(gltfImage, index, bufferViews, urlBase, registry, options, callback) {
 		var preprocess = options && options.image && options.image.preprocess;
 
@@ -31928,41 +31796,15 @@
 			'image/vnd-ms.dds': 'dds'
 		};
 
-		var loadTexture = function loadTexture(url, mimeType, crossOrigin, isBlobUrl) {
-			var name = gltfImage.name || 'gltf-texture';
+		var loadTexture = function loadTexture(url, bufferView, mimeType, options) {
+			var name = (gltfImage.name || 'gltf-texture') + '-' + gltfTextureUniqueId++;
 			var file = {
-				url: url
+				url: url || name
 			};
 
-			if (mimeType) {
-				var extension = mimeTypeFileExtensions[mimeType];
-
-				if (extension) {
-					file.filename = name + '-' + index + '.' + extension;
-				}
+			if (bufferView) {
+				file.contents = bufferView;
 			}
-
-			var asset = new Asset('texture_' + index, 'texture', file, null, {
-				crossOrigin: crossOrigin
-			});
-			asset.on('load', function () {
-				if (isBlobUrl) {
-					URL.revokeObjectURL(url);
-				}
-
-				onLoad(asset);
-			});
-			asset.on('error', callback);
-			registry.add(asset);
-			registry.load(asset);
-		};
-
-		var loadTextureFromData = function loadTextureFromData(mimeType, bufferView) {
-			var name = gltfImage.name || 'gltf-texture';
-			var file = {
-				url: name + '-' + index,
-				contents: bufferView
-			};
 
 			if (mimeType) {
 				var extension = mimeTypeFileExtensions[mimeType];
@@ -31972,7 +31814,7 @@
 				}
 			}
 
-			var asset = new Asset(name, 'texture', file, null);
+			var asset = new Asset(name, 'texture', file, null, options);
 			asset.on('load', onLoad);
 			asset.on('error', callback);
 			registry.add(asset);
@@ -31991,12 +31833,14 @@
 			} else {
 				if (gltfImage.hasOwnProperty('uri')) {
 					if (isDataURI(gltfImage.uri)) {
-						loadTexture(gltfImage.uri, getDataURIMimeType(gltfImage.uri));
+						loadTexture(gltfImage.uri, null, getDataURIMimeType(gltfImage.uri), null);
 					} else {
-						loadTexture(path.join(urlBase, gltfImage.uri), null, "anonymous");
+						loadTexture(path.join(urlBase, gltfImage.uri), null, null, {
+							crossOrigin: "anonymous"
+						});
 					}
 				} else if (gltfImage.hasOwnProperty('bufferView') && gltfImage.hasOwnProperty('mimeType')) {
-					loadTextureFromData(gltfImage.mimeType, bufferViews[gltfImage.bufferView]);
+					loadTexture(null, bufferViews[gltfImage.bufferView], gltfImage.mimeType, null);
 				} else {
 					callback("Invalid image found in gltf (neither uri or bufferView found). index=" + index);
 				}
@@ -32357,15 +32201,19 @@
 			options = options || {};
 			parseChunk(filename, data, function (err, chunks) {
 				if (err) {
+					console.error(err);
 				} else {
 					parseGltf(chunks.gltfChunk, function (err, gltf) {
 						if (err) {
+							console.error(err);
 						} else {
 							parseBufferViewsAsync(gltf, [chunks.binaryChunk], options, function (err, bufferViews) {
 								if (err) {
+									console.error(err);
 								} else {
 									createResources(device, gltf, bufferViews, [], options, function (err, result_) {
 										if (err) {
+											console.error(err);
 										} else {
 											result = result_;
 										}
@@ -32768,6 +32616,7 @@
 					msg += ': ' + (err.message || err);
 				}
 
+				console.warn(msg);
 				callback(msg);
 			};
 
@@ -32935,8 +32784,10 @@
 				utfDecoder = new TextDecoder('utf-8');
 				asciiDecoder = new TextDecoder('windows-1252');
 			} catch (e) {
+				console.warn('TextDecoder not supported - pc.Untar module will not work');
 			}
 		} else {
+			console.warn('TextDecoder not supported - pc.Untar module will not work');
 		}
 
 		function PaxHeader(fields) {
@@ -33088,6 +32939,7 @@
 
 		UntarInternal.prototype.untar = function (filenamePrefix) {
 			if (!utfDecoder) {
+				console.error('Cannot untar because TextDecoder interface is not available for this platform.');
 				return [];
 			}
 
@@ -33481,6 +33333,14 @@
 
 							if (lightEntity) {
 								entity.addChild(lightEntity.clone());
+							}
+						}
+
+						if (glb.cameras) {
+							var cameraEntity = glb.cameras.get(gltfNode);
+
+							if (cameraEntity) {
+								cameraEntity.camera.system.cloneComponent(cameraEntity, entity);
 							}
 						}
 					}
@@ -34802,6 +34662,7 @@
 					}
 				}
 			} else {
+				console.error("Unknown material type: " + type);
 			}
 		}
 
@@ -34838,7 +34699,7 @@
 			}
 
 			if (data.chunks) {
-				material.chunks.copy(data.chunks);
+				material.chunks = _extends({}, data.chunks);
 			}
 
 			for (var key in data) {
@@ -36298,6 +36159,7 @@
 		};
 
 		_proto._onFailure = function _onFailure(key, err) {
+			console.error(err);
 
 			if (this._requests[key]) {
 				for (var i = 0; i < this._requests[key].length; i++) {
@@ -36312,6 +36174,7 @@
 			var handler = this._handlers[type];
 
 			if (!handler) {
+				console.warn("No resource handler found for: " + type);
 				return data;
 			}
 
@@ -36322,6 +36185,7 @@
 			var handler = this._handlers[asset.type];
 
 			if (!handler) {
+				console.warn("No resource handler found for: " + asset.type);
 				return;
 			}
 
@@ -36437,6 +36301,7 @@
 
 		ScriptHandler._push = function _push(Type) {
 			if (script.legacy && ScriptHandler._types.length > 0) {
+				console.assert("Script Ordering Error. Contact support@playcanvas.com");
 			} else {
 				ScriptHandler._types.push(Type);
 			}
@@ -36895,6 +36760,7 @@
 					if (atlas) {
 						asset.data.textureAtlasAsset = atlas.id;
 					} else {
+						console.warn("Could not find textureatlas with url: " + sprite.__data.textureAtlasAsset);
 					}
 				}
 			}
@@ -37651,6 +37517,7 @@
 				WebAssembly.instantiate(config.module, imports).then(function (result) {
 					successCallback(result);
 				}).catch(function (reason) {
+					console.error('instantiate failed + ' + reason);
 				});
 				return {};
 			};
@@ -37956,6 +37823,7 @@
 			config.rgbaPriority = config.rgbaPriority || defaultRgbaPriority;
 			prepareWorkerModules(config, function (err, clientConfig) {
 				if (err) {
+					console.error("failed to initialize basis worker: " + err);
 				} else {
 					for (var i = 0; i < numWorkers; ++i) {
 						queue.enqueueClient(new BasisClient(queue, clientConfig, eagerWorkers));
@@ -38112,6 +37980,7 @@
 
 				if (maxRetries > 0 && ++retries <= maxRetries) {
 					var retryDelay = Math.pow(2, retries) * 100;
+					console.log("Error loading Texture from: '" + originalUrl + "' - Retrying in " + retryDelay + "ms...");
 					var idx = url.indexOf('?');
 					var separator = idx >= 0 ? '&' : '?';
 					retryTimeout = setTimeout(function () {
@@ -39426,6 +39295,7 @@
 			}
 
 			var onTextureLoaded = function onTextureLoaded(err, texture) {
+				if (err) console.error(err);
 				textures.push(texture);
 
 				if (textures.length === count) {
@@ -39808,6 +39678,7 @@
 						self.fire('swap', scriptName, script);
 						self.fire('swap:' + scriptName, script);
 					} else {
+						console.warn('script registry already has \'' + scriptName + '\' script, define \'swap\' method for new script type to enable code hot swapping');
 					}
 				});
 				return false;
@@ -40071,6 +39942,7 @@
 			try {
 				parsed = this._parser.parse(data);
 			} catch (err) {
+				console.error(err);
 				return;
 			}
 
@@ -40100,6 +39972,7 @@
 			try {
 				parsed = this._parser.parse(data);
 			} catch (err) {
+				console.error(err);
 				return;
 			}
 
@@ -43019,7 +42892,7 @@
 					break;
 
 				default:
-					break;
+					console.error('Component System does not support event', event);
 			}
 		};
 
@@ -43069,7 +42942,7 @@
 					break;
 
 				default:
-					break;
+					console.error('Component System does not support event', event);
 			}
 		};
 
@@ -45262,12 +45135,10 @@
 			weightedDurationSum = 0.0;
 
 			for (i = 0; i < this._children.length; i++) {
-				var _AnimBlendTreeCartesi2;
-
 				var child = this._children[i];
 				pi = child.point;
 
-				(_AnimBlendTreeCartesi2 = AnimBlendTreeCartesian2D._pip).set.apply(_AnimBlendTreeCartesi2, AnimBlendTreeCartesian2D._p.data).sub(pi);
+				AnimBlendTreeCartesian2D._pip.set(AnimBlendTreeCartesian2D._p.x, AnimBlendTreeCartesian2D._p.y).sub(pi);
 
 				minj = Number.MAX_VALUE;
 
@@ -47864,6 +47735,7 @@
 				this._updateEntityReference();
 			} else {
 				if (newValue !== null && newValue !== undefined && typeof newValue !== 'string') {
+					console.warn("Entity field `" + this._entityPropertyName + "` was set to unexpected type '" + typeof newValue + "'");
 					return;
 				}
 
@@ -48010,6 +47882,7 @@
 			}
 
 			if (!isDestroying) {
+				console.warn('Entity has no component with name ' + sourceName);
 			}
 
 			return null;
@@ -49404,6 +49277,7 @@
 				clearDepthBuffer: c.clearDepthBuffer,
 				clearStencilBuffer: c.clearStencilBuffer,
 				cullFaces: c.cullFaces,
+				enabled: c.enabled,
 				farClip: c.farClip,
 				flipFaces: c.flipFaces,
 				fov: c.fov,
@@ -52712,6 +52586,7 @@
 		var tags = [];
 
 		if (!parser.parse(stripped_symbols, tags)) {
+			console.warn(parser.error());
 			return {
 				symbols: symbols,
 				tags: null
@@ -52723,6 +52598,7 @@
 		});
 
 		if (invalidTag) {
+			console.warn("Markup error: found unclosed tag='" + invalidTag.name + "'");
 			return {
 				symbols: symbols,
 				tags: null
@@ -52958,6 +52834,7 @@
 				if (unicodeConverterFunc) {
 					text = unicodeConverterFunc(text);
 				} else {
+					console.warn('Element created with unicodeConverter option but no unicodeConverter function registered');
 				}
 			}
 
@@ -53004,6 +52881,7 @@
 						});
 					}
 				} else {
+					console.warn('Element created with rtlReorder option but no rtlReorder function registered');
 				}
 			} else {
 				this._rtl = false;
@@ -53419,6 +53297,7 @@
 						x = (data.xoffset - kerning) * scale;
 						y = data.yoffset * scale;
 					} else {
+						console.error("Couldn't substitute missing character: '" + char + "'");
 					}
 
 					var isWhitespace = WHITESPACE_CHAR.test(char);
@@ -55552,6 +55431,7 @@
 				}
 			} else {
 				if (this._useInput === true) {
+					console.warn("Elements will not get any input events because this.system.app.elementInput is not created");
 				}
 			}
 
@@ -57753,6 +57633,7 @@
 				}
 
 				if (++iterationCount >= MAX_ITERATIONS) {
+					console.warn('Max reflow iterations limit reached, bailing.');
 					break;
 				}
 			}
@@ -58251,6 +58132,7 @@
 			if (data.cookieScale && data.cookieScale instanceof Array) data.cookieScale = new Vec2(data.cookieScale[0], data.cookieScale[1]);
 
 			if (data.enable) {
+				console.warn("WARNING: enable: Property is deprecated. Set enabled property instead.");
 				data.enabled = data.enable;
 			}
 
@@ -63254,11 +63136,13 @@
 					return scriptInstance;
 				}
 
+				console.warn('script \'' + scriptName + '\' is already added to entity \'' + this.entity.name + '\'');
 			} else {
 				this._scriptsIndex[scriptName] = {
 					awaiting: true,
 					ind: this._scripts.length
 				};
+				console.warn('script \'' + scriptName + '\' is not found, awaiting it to be added to registry');
 			}
 
 			return null;
@@ -63492,6 +63376,7 @@
 							}
 						}
 					} else {
+						console.log(this.order);
 					}
 				}
 			}
@@ -63846,6 +63731,7 @@
 							}
 						}
 					} else {
+						console.error(err);
 					}
 
 					if (count === 0) {
@@ -64528,6 +64414,7 @@
 				_inputScreenPosition.x = event.changedTouches[0].x * devicePixelRatio;
 				_inputScreenPosition.y = event.changedTouches[0].y * devicePixelRatio;
 			} else {
+				console.warn('Could not determine position from input event');
 			}
 		};
 
@@ -64834,6 +64721,7 @@
 					return scrollValue;
 
 				default:
+					console.warn('Unhandled scroll mode:' + this.scrollMode);
 					return scrollValue;
 			}
 		};
@@ -64916,6 +64804,7 @@
 						return;
 
 					default:
+						console.warn('Unhandled scrollbar visibility:' + requestedVisibility);
 						entity.enabled = isScrollingEnabled;
 				}
 			}
@@ -65004,6 +64893,7 @@
 				return this.vertical;
 			}
 
+			console.warn('Unrecognized orientation: ' + orientation);
 		};
 
 		_proto._getScrollbarVisibility = function _getScrollbarVisibility(orientation) {
@@ -65013,6 +64903,7 @@
 				return this.verticalScrollbarVisibility;
 			}
 
+			console.warn('Unrecognized orientation: ' + orientation);
 		};
 
 		_proto._getSign = function _getSign(orientation) {
@@ -65880,6 +65771,7 @@
 			},
 			setExternalNodes: function setExternalNodes(firstNode, lastNode) {
 				if (!firstNode) {
+					console.error('The firstNode must be a valid Audio Node');
 					return;
 				}
 
@@ -66541,6 +66433,7 @@
 
 		_proto.setExternalNodes = function setExternalNodes(firstNode, lastNode) {
 			if (!firstNode) {
+				console.error('The firstNode must have a valid AudioNode');
 				return;
 			}
 
@@ -69296,6 +69189,7 @@
 			}
 
 			_this = _EventHandler.call(this) || this;
+			console.log("Powered by PlayCanvas " + version + " " + revision);
 			Application._applications[canvas.id] = _assertThisInitialized(_this);
 			setApplication(_assertThisInitialized(_this));
 			exports.app = _assertThisInitialized(_this);
@@ -69661,6 +69555,7 @@
 
 			if (l) {
 				var onLoad = function onLoad(err, ScriptType) {
+					if (err) console.error(err);
 					progress.inc();
 
 					if (progress.done()) {
@@ -70266,6 +70161,7 @@
 
 				if (typeof arg4 === 'number') {
 					if (!_deprecationWarning) {
+						console.warn("lineBatch argument is deprecated for renderLine. Use options.layer instead");
 						_deprecationWarning = true;
 					}
 
@@ -70285,6 +70181,7 @@
 				}
 			} else if (typeof arg3 === 'number') {
 				if (!_deprecationWarning) {
+					console.warn("lineBatch argument is deprecated for renderLine. Use options.layer instead");
 					_deprecationWarning = true;
 				}
 
@@ -70316,6 +70213,7 @@
 				};
 			} else if (typeof options === 'number') {
 				if (!_deprecationWarning) {
+					console.warn("lineBatch argument is deprecated for renderLine. Use options.layer instead");
 					_deprecationWarning = true;
 				}
 
@@ -70336,11 +70234,13 @@
 
 			if (multiColor) {
 				if (position.length !== color.length) {
+					console.error("renderLines: position/color arrays have different lengths");
 					return;
 				}
 			}
 
 			if (position.length % 2 !== 0) {
+				console.error("renderLines: array length is not divisible by 2");
 				return;
 			}
 
@@ -70905,6 +70805,7 @@
 						if (newEntityReferenceId) {
 							newEntity.c[componentName][propertyName] = newEntityReferenceId;
 						} else {
+							console.warn('Could not find corresponding entity id when resolving duplicated entity references');
 						}
 					}
 				}
@@ -73978,17 +73879,22 @@
 
 	var log = {
 		write: function write(text) {
+			console.log(text);
 		},
 		open: function open() {
 			log.write("Powered by PlayCanvas " + version + " " + revision);
 		},
 		info: function info(text) {
+			console.info("INFO:		" + text);
 		},
 		debug: function debug(text) {
+			console.debug("DEBUG:	 " + text);
 		},
 		error: function error(text) {
+			console.error("ERROR:	 " + text);
 		},
 		warning: function warning(text) {
+			console.warn("WARNING: " + text);
 		},
 		alert: function (_alert) {
 			function alert(_x) {
