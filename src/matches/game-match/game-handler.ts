@@ -11,6 +11,8 @@ export class GameHandler {
     public static readonly TICK_RATE = 60;
 
     private static readonly SECONDS_WITHOUT_PLAYERS = 60;
+    // flappy bird - 53910467
+    // level - 53346151
     private static readonly PLAYER_TEMPLATE_ID = 53910467;
     private static lastNetworkId = 0;
 

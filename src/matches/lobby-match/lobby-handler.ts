@@ -45,7 +45,7 @@ export class LobbyHandler {
         const player = new Player(presence);
 
         state.players.push(player);
-        dispatcher.broadcastMessage(SERVER_MESSAGES.LOBBY_JOINED, JSON.stringify(player.presence), null, null, true);
+        dispatcher.broadcastMessage(SERVER_MESSAGES.LOBBY_JOINED, JSON.stringify({ presence: player.presence, isOwner: state.ownerId == presence.userId, isReady: player.isReady }), null, null, true);
 
         return state;
     }
