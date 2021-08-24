@@ -1,4 +1,5 @@
 const console = require('./console');
+const { setTimeout, setInterval } = require('./timeout');
 
 /**
  * @license

@@ -14,7 +14,7 @@ export const gameInit = (
     logger.info(`Init game match with params ${JSON.stringify(params)}`);
 
     return {
-        state: GameHandler.initState(nk, params),
+        state: GameHandler.initState(ctx, nk, logger, params),
         tickRate: GameHandler.TICK_RATE,
         label: params.label,
     };
@@ -94,6 +94,8 @@ export const gameLoop = (
 
     if (GameHandler.shouldStop(tick, state.lastActiveTick, ctx.matchTickRate))
         return null;
+
+    GameHandler.apps[ctx.matchId].update(1 / ctx.matchTickRate);
 
     messages.forEach(m => {
         state = GameHandler.handlePlayerMessage(logger, nk, dispatcher, state, m);
