@@ -16,21 +16,26 @@ export class LobbyHandler {
         const ownerId: string | null = null;
         const selectedLevel: string | null = null;
         const gameId: string | null = null;
-        const players: Player[] = [];
+        const players: (Player | null)[] = [];
+
+        for(let i = 0; i < this.DEFAULT_MAX_PLAYERS; i++) {
+            players.push(null);
+        }
+
         const lastActiveTick: number = 0;
 
         return { isPrivate, maxPlayers, ownerId, selectedLevel, gameId, players, lastActiveTick };
     }
 
     public static validateJoinAttempt(state: nkruntime.MatchState, presensce: nkruntime.Presence): NakamaError | null {
-        if (state.players.length >= state.maxPlayers)
+        if (state.players.filter((p : Player | null) => p).length >= state.maxPlayers)
             return new NakamaError(ERROR_TYPES.LOBBY_FULL, 'Lobby is full');
 
         return null;
     }
 
     public static addPlayer(dispatcher: nkruntime.MatchDispatcher, state: nkruntime.MatchState, presence: nkruntime.Presence): nkruntime.MatchState {
-        if (state.players.length == 0)
+        if (state.players.filter((p : Player | null) => p).length == 0)
             state.ownerId = presence.userId;
 
         const initialState = {
@@ -44,19 +49,45 @@ export class LobbyHandler {
 
         const player = new Player(presence);
 
-        state.players.push(player);
-        dispatcher.broadcastMessage(SERVER_MESSAGES.LOBBY_JOINED, JSON.stringify({ presence: player.presence, isOwner: state.ownerId == presence.userId, isReady: player.isReady }), null, null, true);
+        const emptyIndex = state.players.findIndex((p: Player | null) => !p);
+
+        state.players[emptyIndex] = player;
+
+        dispatcher.broadcastMessage(
+            SERVER_MESSAGES.LOBBY_JOINED,
+            JSON.stringify({
+                presence: player.presence,
+                isOwner: state.ownerId == presence.userId,
+                isReady: player.isReady,
+                position: emptyIndex,
+            }),
+            null,
+            null,
+            true
+        );
 
         return state;
     }
 
     public static removePlayer(dispatcher: nkruntime.MatchDispatcher, state: nkruntime.MatchState, presence: nkruntime.Presence): nkruntime.MatchState {
-        state.players = state.players.filter((p: Player) => p.presence.userId !== presence.userId);
+        for (let i = 0; i < this.DEFAULT_MAX_PLAYERS; i++) {
+            if (state.players[i] && state.players[i].presence.userId == presence.userId) {
+                state.players[i] = null;
+                break;
+            }
+        }
 
-        if (presence.userId == state.ownerId)
-            state.ownerId = state.players.length ? state.players[0].presence.userId : null;
+        if (presence.userId == state.ownerId) {
+            for (let i = 0; i < this.DEFAULT_MAX_PLAYERS; i++) {
+                if (state.players[i]) {
+                    state.ownerId = state.players[i].presence.userId;
+                    [state.players[0], state.players[i]] = [state.players[i], state.players[0]];
+                    break;
+                }
+            }
+        }
 
-        const message = { presence: presence, ownerId: state.ownerId }
+        const message = { presence: presence, ownerId: state.ownerId, order: state.players.map((p: Player | null) => p?.presence.userId) };
 
         dispatcher.broadcastMessage(SERVER_MESSAGES.LOBBY_LEFT, JSON.stringify(message), null, null, true);
 
@@ -102,12 +133,12 @@ export class LobbyHandler {
         if (data.message.sender.userId != data.state.ownerId)
             return data.state;
 
-        if (data.state.players.some((p: Player) => p.presence.userId != data.state.ownerId && !p.isReady))
+        if (data.state.players.some((p: Player | null) => p && p.presence.userId != data.state.ownerId && !p.isReady))
             return data.state;
 
         const messageObject = JSON.parse(data.message.data);
 
-        messageObject.expectedPlayers = data.state.players.length;
+        messageObject.expectedPlayers = data.state.players.filter((p: Player | null) => !!p).length;
 
         data.state.gameId = data.nk.matchCreate(MATCH_TYPES.GAME, messageObject);
 
@@ -119,7 +150,7 @@ export class LobbyHandler {
     public static setIsReady(data: ClientActionParams): nkruntime.MatchState {
         const messageObject = JSON.parse(data.message.data);
 
-        const player: Player = data.state.players.find((p: Player) => p.presence.userId == data.message.sender.userId);
+        const player: Player = data.state.players.find((p: Player | null) => p && p.presence.userId == data.message.sender.userId);
 
         player.isReady = messageObject.isReady;
 
