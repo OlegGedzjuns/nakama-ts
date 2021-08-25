@@ -133,12 +133,12 @@ export class LobbyHandler {
         if (data.message.sender.userId != data.state.ownerId)
             return data.state;
 
-        if (data.state.players.some((p: Player) => p.presence.userId != data.state.ownerId && !p.isReady))
+        if (data.state.players.some((p: Player | null) => p && p.presence.userId != data.state.ownerId && !p.isReady))
             return data.state;
 
         const messageObject = JSON.parse(data.message.data);
 
-        messageObject.expectedPlayers = data.state.players.length;
+        messageObject.expectedPlayers = data.state.players.filter((p: Player | null) => !!p).length;
 
         data.state.gameId = data.nk.matchCreate(MATCH_TYPES.GAME, messageObject);
 
