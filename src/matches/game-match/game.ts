@@ -92,10 +92,13 @@ export const gameLoop = (
 ): { state: nkruntime.MatchState } | null => {
     state.lastActiveTick = state.players.length ? tick : state.lastActiveTick;
 
-    if (GameHandler.shouldStop(tick, state.lastActiveTick, ctx.matchTickRate))
+    if (GameHandler.shouldStop(tick, state.lastActiveTick, ctx.matchTickRate)) {
+        // https://github.com/playcanvas/engine/issues/3388#issuecomment-905528312
+        // GameHandler.getApp(ctx.matchId).destroy();
         return null;
+    }
 
-    GameHandler.apps[ctx.matchId].update(1 / ctx.matchTickRate);
+    GameHandler.getApp(ctx.matchId).update(1 / ctx.matchTickRate);
 
     messages.forEach(m => {
         state = GameHandler.handlePlayerMessage(logger, nk, dispatcher, state, m);

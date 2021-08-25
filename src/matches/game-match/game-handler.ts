@@ -1,4 +1,4 @@
-import HTMLCanvasElement from 'webgl-mock-threejs/src/HTMLCanvasElement';
+import { AppHandler } from './app-handler';
 
 import * as pc from '../../libs/playcanvas';
 
@@ -9,12 +9,9 @@ import { ClientActionParams } from '../../models/client-action';
 
 import { CLIENT_MESSAGES, SERVER_MESSAGES, SYSTEM_USER_ID } from '../../utils/constants';
 
-import { create } from '../../playsandbox/scripts/components/test';
-
 export class GameHandler {
     public static readonly TICK_RATE = 60;
 
-    public static app = new pc.Application(new HTMLCanvasElement(), {});
     public static apps = new Map<string, pc.Application>();
 
     private static readonly SECONDS_WITHOUT_PLAYERS = 60;
@@ -23,21 +20,20 @@ export class GameHandler {
     private static readonly PLAYER_TEMPLATE_ID = 53910467;
     private static lastNetworkId = 0;
 
+    public static getApp(matchId: string): pc.Application {
+        return this.apps.get(matchId);
+    }
+
     public static initState(ctx: nkruntime.Context, nk: nkruntime.Nakama, logger: nkruntime.Logger, params: { [key: string]: any }) {
         const [level, networkIdentities] = this.initializeLevel(nk, params.levelId);
         const players: Player[] = [];
         const expectedPlayers: number = params.expectedPlayers;
         const playersInitialized: boolean = false;
         const lastActiveTick: number = 0;
+        
+        const app = AppHandler.create(logger);
 
-        create();
-
-        this.apps[ctx.matchId] = new pc.Application(new HTMLCanvasElement(), {});
-
-        const app: pc.Application = this.apps[ctx.matchId];
-
-        //@ts-ignore
-        app.scripts = this.app.scripts;
+        this.apps.set(ctx.matchId, app);
 
         const box = new pc.Entity('cube');
 
@@ -47,32 +43,10 @@ export class GameHandler {
 
         box.addComponent('script');
         box.script.create('test');
-        box.on('test', e => logger.info('TEST: ' + e));
 
         app.root.addChild(box);
 
-        //app.on('update', dt => logger.info('DT: ' + dt));
-
         app.start();
-
-        // const sceneRegistryItem = new pc.SceneRegistryItem(level.name, level.item_id);
-        // //@ts-ignore
-        // sceneRegistryItem.data = level;
-        // //@ts-ignore
-        // sceneRegistryItem._loading = false;
-
-        // const sr = new pc.SceneRegistry(this.apps[ctx.matchId]);
-        // sr.loadSceneData(sceneRegistryItem, () => {});
-        // sr.loadSceneHierarchy(sceneRegistryItem, () => {});
-        // sr.loadSceneSettings(sceneRegistryItem, () => {});
-
-        // const gameRoot = this.apps[ctx.matchId].root.findByTag('game-root')[0];
-
-        // logger.info(gameRoot.name);
-
-        // for(let child of gameRoot.children) {
-        //     logger.info(child.name);
-        // }
 
         return { level, networkIdentities, players, expectedPlayers, playersInitialized, lastActiveTick };
     }
