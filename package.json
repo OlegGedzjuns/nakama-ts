@@ -24,6 +24,7 @@
     "typescript": "^4.3.5"
   },
   "dependencies": {
-    "nakama-runtime": "github:heroiclabs/nakama-common"
+    "nakama-runtime": "github:heroiclabs/nakama-common",
+    "webgl-mock-threejs": "^0.0.1"
   }
 }

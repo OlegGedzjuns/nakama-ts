@@ -1,4 +1,6 @@
-import { Vec3 } from '../../libs/playcanvas';
+import { AppHandler } from './app-handler';
+
+import * as pc from '../../libs/playcanvas';
 
 import { NakamaError } from '../../models/error';
 import { NetworkIdentity } from '../../models/network-identity/network-identity';
@@ -10,18 +12,30 @@ import { CLIENT_MESSAGES, SERVER_MESSAGES, SYSTEM_USER_ID } from '../../utils/co
 export class GameHandler {
     public static readonly TICK_RATE = 60;
 
+    public static apps = new Map<string, pc.Application>();
+
     private static readonly SECONDS_WITHOUT_PLAYERS = 60;
     // flappy bird - 53910467
     // level - 53346151
     private static readonly PLAYER_TEMPLATE_ID = 53910467;
     private static lastNetworkId = 0;
 
-    public static initState(nk: nkruntime.Nakama, params: { [key: string]: any }) {
+    public static getApp(matchId: string): pc.Application {
+        return this.apps.get(matchId);
+    }
+
+    public static initState(ctx: nkruntime.Context, nk: nkruntime.Nakama, logger: nkruntime.Logger, params: { [key: string]: any }) {
         const [level, networkIdentities] = this.initializeLevel(nk, params.levelId);
         const players: Player[] = [];
         const expectedPlayers: number = params.expectedPlayers;
         const playersInitialized: boolean = false;
         const lastActiveTick: number = 0;
+        
+        const app = AppHandler.create(logger);
+
+        this.apps.set(ctx.matchId, app);
+
+        app.start();
 
         return { level, networkIdentities, players, expectedPlayers, playersInitialized, lastActiveTick };
     }
@@ -105,7 +119,7 @@ export class GameHandler {
 
         for (let player of state.players as Player[]) {
             const networkIdentity = new NetworkIdentity(this.lastNetworkId++, 1);
-            networkIdentity.data.position = Vec3.ZERO.clone();
+            networkIdentity.data.position = pc.Vec3.ZERO.clone();
 
             player.networkId = networkIdentity.id;
 
@@ -146,7 +160,7 @@ export class GameHandler {
         return networkIdentitiesChanges;
     }
 
-    private static initializeLevel(nk: nkruntime.Nakama, levelId: string): [{}, NetworkIdentity[]] {
+    private static initializeLevel(nk: nkruntime.Nakama, levelId: string): [{ [key: string]: any }, NetworkIdentity[]] {
         let rawLevel = this.loadLevel(nk, levelId);
         return this.initializeNetworkIdentities(rawLevel);
     }
