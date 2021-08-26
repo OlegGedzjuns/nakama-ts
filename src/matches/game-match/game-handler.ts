@@ -35,17 +35,6 @@ export class GameHandler {
 
         this.apps.set(ctx.matchId, app);
 
-        const box = new pc.Entity('cube');
-
-        box.addComponent('model', {
-            type: 'box'
-        });
-
-        box.addComponent('script');
-        box.script.create('test');
-
-        app.root.addChild(box);
-
         app.start();
 
         return { level, networkIdentities, players, expectedPlayers, playersInitialized, lastActiveTick };

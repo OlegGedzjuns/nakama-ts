@@ -12,6 +12,6 @@ export const create = function(app, console) {
     }
 
     Test.prototype.update = function(dt) {
-        this.entity.fire('test', `test ${dt}`);
+        this.entity.fire('example', `example ${dt}`);
     }
 }
