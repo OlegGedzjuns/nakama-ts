@@ -2,7 +2,7 @@ import { LobbyHandler } from './lobby-handler';
 
 import { NakamaError } from '../../models/error';
 
-export const lobbyInit = (
+export const init = (
     ctx: nkruntime.Context,
     logger: nkruntime.Logger,
     nk: nkruntime.Nakama,
@@ -17,7 +17,7 @@ export const lobbyInit = (
     };
 };
 
-export const lobbyJoinAttempt = (
+export const joinAttempt = (
     ctx: nkruntime.Context,
     logger: nkruntime.Logger,
     nk: nkruntime.Nakama,
@@ -37,7 +37,7 @@ export const lobbyJoinAttempt = (
     return { state, accept: true };
 };
 
-export const lobbyJoin = (
+export const join = (
     ctx: nkruntime.Context,
     logger: nkruntime.Logger,
     nk: nkruntime.Nakama,
@@ -55,7 +55,7 @@ export const lobbyJoin = (
     return { state };
 };
 
-export const lobbyLeave = (
+export const leave = (
     ctx: nkruntime.Context,
     logger: nkruntime.Logger,
     nk: nkruntime.Nakama,
@@ -73,7 +73,7 @@ export const lobbyLeave = (
     return { state };
 };
 
-export const lobbyLoop = (
+export const loop = (
     ctx: nkruntime.Context,
     logger: nkruntime.Logger,
     nk: nkruntime.Nakama,
@@ -95,7 +95,7 @@ export const lobbyLoop = (
     return { state };
 };
 
-export const lobbyTerminate = (
+export const terminate = (
     ctx: nkruntime.Context,
     logger: nkruntime.Logger,
     nk: nkruntime.Nakama,

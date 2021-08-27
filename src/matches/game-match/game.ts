@@ -5,7 +5,7 @@ import { NakamaError } from '../../models/error';
 
 import { SERVER_MESSAGES } from '../../utils/constants';
 
-export const gameInit = (
+export const init = (
     ctx: nkruntime.Context,
     logger: nkruntime.Logger,
     nk: nkruntime.Nakama,
@@ -20,7 +20,7 @@ export const gameInit = (
     };
 };
 
-export const gameJoinAttempt = (
+export const joinAttempt = (
     ctx: nkruntime.Context,
     logger: nkruntime.Logger,
     nk: nkruntime.Nakama,
@@ -40,7 +40,7 @@ export const gameJoinAttempt = (
     return { state, accept: true };
 };
 
-export const gameJoin = (
+export const join = (
     ctx: nkruntime.Context,
     logger: nkruntime.Logger,
     nk: nkruntime.Nakama,
@@ -62,7 +62,7 @@ export const gameJoin = (
     return { state };
 };
 
-export const gameLeave = (
+export const leave = (
     ctx: nkruntime.Context,
     logger: nkruntime.Logger,
     nk: nkruntime.Nakama,
@@ -81,7 +81,7 @@ export const gameLeave = (
     return { state };
 };
 
-export const gameLoop = (
+export const loop = (
     ctx: nkruntime.Context,
     logger: nkruntime.Logger,
     nk: nkruntime.Nakama,
@@ -119,7 +119,7 @@ export const gameLoop = (
     return { state };
 };
 
-export const gameTerminate = (
+export const terminate = (
     ctx: nkruntime.Context,
     logger: nkruntime.Logger,
     nk: nkruntime.Nakama,

@@ -1,5 +1,5 @@
-import { lobbyInit, lobbyJoin, lobbyJoinAttempt, lobbyLeave, lobbyLoop, lobbyTerminate } from './matches/lobby-match/lobby';
-import { gameInit, gameJoin, gameJoinAttempt, gameLeave, gameLoop, gameTerminate } from './matches/game-match/game';
+import * as Lobby from './matches/lobby-match/lobby';
+import * as Game from './matches/game-match/game';
 
 import { rpcCreateMatch } from './rpcs/match-service';
 import { rpcLobbyInvite } from './rpcs/lobby-service';
@@ -12,21 +12,21 @@ let InitModule: nkruntime.InitModule = function (
     initializer: nkruntime.Initializer
 ) {
     initializer.registerMatch('lobby', {
-        matchInit: lobbyInit,
-        matchJoinAttempt: lobbyJoinAttempt,
-        matchJoin: lobbyJoin,
-        matchLeave: lobbyLeave,
-        matchLoop: lobbyLoop,
-        matchTerminate: lobbyTerminate,
+        matchInit: Lobby.init,
+        matchJoinAttempt: Lobby.joinAttempt,
+        matchJoin: Lobby.join,
+        matchLeave: Lobby.leave,
+        matchLoop: Lobby.loop,
+        matchTerminate: Lobby.terminate,
     });
 
     initializer.registerMatch('game', {
-        matchInit: gameInit,
-        matchJoinAttempt: gameJoinAttempt,
-        matchJoin: gameJoin,
-        matchLeave: gameLeave,
-        matchLoop: gameLoop,
-        matchTerminate: gameTerminate,
+        matchInit: Game.init,
+        matchJoinAttempt: Game.joinAttempt,
+        matchJoin: Game.join,
+        matchLeave: Game.leave,
+        matchLoop: Game.loop,
+        matchTerminate: Game.terminate,
     });
 
     initializer.registerRpc('createMatch', rpcCreateMatch);
