@@ -1,23 +1,21 @@
-import { AppHandler } from '../app-handler';
+import { AppHandler } from './../app-handler';
 
 import * as pc from '../../libs/playcanvas';
 
-import { NakamaError } from '../../models/error';
 import { NetworkIdentity } from '../../models/network-identity/network-identity';
 import { Player } from '../../models/player';
 import { ClientActionParams } from '../../models/client-action';
 
 import { CLIENT_MESSAGES, SERVER_MESSAGES, SYSTEM_USER_ID } from '../../utils/constants';
 
-export class GameHandler {
+export class DemoHandler {
     public static readonly TICK_RATE = 60;
 
     public static apps = new Map<string, pc.Application>();
 
     private static readonly SECONDS_WITHOUT_PLAYERS = 60;
-    // flappy bird - 53910467
-    // level - 53346151
-    private static readonly PLAYER_TEMPLATE_ID = 53910467;
+    private static readonly LEVEL_ID = '1219105';
+    private static readonly PLAYER_TEMPLATE_ID = 54251385;
     private static lastNetworkId = 0;
 
     public static getApp(matchId: string): pc.Application {
@@ -25,7 +23,7 @@ export class GameHandler {
     }
 
     public static initState(ctx: nkruntime.Context, nk: nkruntime.Nakama, logger: nkruntime.Logger, params: { [key: string]: any }) {
-        const [level, networkIdentities] = this.initializeLevel(nk, params.levelId);
+        const [level, networkIdentities] = this.initializeLevel(nk);
         const players: Player[] = [];
         const expectedPlayers: number = params.expectedPlayers;
         const playersInitialized: boolean = false;
@@ -35,13 +33,11 @@ export class GameHandler {
 
         this.apps.set(ctx.matchId, app);
 
+        
+
         app.start();
 
         return { level, networkIdentities, players, expectedPlayers, playersInitialized, lastActiveTick };
-    }
-
-    public static validateJoinAttempt(state: nkruntime.MatchState, presensce: nkruntime.Presence): NakamaError | null {
-        return null;
     }
 
     public static addPlayer(dispatcher: nkruntime.MatchDispatcher, state: nkruntime.MatchState, presence: nkruntime.Presence): nkruntime.MatchState {
@@ -49,7 +45,15 @@ export class GameHandler {
 
         state.players.push(player);
 
-        dispatcher.broadcastMessage(SERVER_MESSAGES.PLAYER_JOINED, JSON.stringify(player.presence), null, null, true);
+        dispatcher.broadcastMessage(SERVER_MESSAGES.DEMO_PLAYER_JOINED, JSON.stringify(player.presence), null, null, true);
+
+        return state;
+    }
+
+    public static removePlayer(dispatcher: nkruntime.MatchDispatcher, state: nkruntime.MatchState, presence: nkruntime.Presence): nkruntime.MatchState {
+        state.players = state.players.filter((pl: Player) => pl.presence.userId !== presence.userId);
+        
+        dispatcher.broadcastMessage(SERVER_MESSAGES.DEMO_PLAYER_LEFT, JSON.stringify(presence), null, null, true);
 
         return state;
     }
@@ -73,6 +77,17 @@ export class GameHandler {
         logger.warn('Cannot find player message action with code: ', message.opCode);
 
         return state;
+    }
+
+    public static playerLevelInitialized(data: ClientActionParams): nkruntime.MatchState {
+        for (let player of data.state.players as Player[]) {
+            if (player.presence.userId === data.message.sender.userId) {
+                player.levelCreated = true;
+                break;
+            }
+        }
+
+        return data.state;
     }
 
     public static movePlayer(data: ClientActionParams): nkruntime.MatchState {
@@ -100,15 +115,10 @@ export class GameHandler {
             networkIdentity.data.position.z += message.direction.z;
         }
 
-        return data.state;
-    }
-
-    public static playerLevelInitialized(data: ClientActionParams): nkruntime.MatchState {
-        for (let player of data.state.players as Player[]) {
-            if (player.presence.userId === data.message.sender.userId) {
-                player.levelCreated = true;
-                break;
-            }
+        if (message.rotation) {
+            networkIdentity.data.rotation.x += message.rotation.x;
+            networkIdentity.data.rotation.y += message.rotation.y;
+            networkIdentity.data.rotation.z += message.rotation.z;
         }
 
         return data.state;
@@ -117,9 +127,14 @@ export class GameHandler {
     public static initializePlayers(state: nkruntime.MatchState, dispatcher: nkruntime.MatchDispatcher): nkruntime.MatchState {
         let entitiesToCreate: { templateId: number; scripts: { [name: string]: any }; username: string; }[] = [];
 
+        let index = 0;
+        
         for (let player of state.players as Player[]) {
             const networkIdentity = new NetworkIdentity(this.lastNetworkId++, 1);
-            networkIdentity.data.position = pc.Vec3.ZERO.clone();
+            networkIdentity.data.position.x = 7 - (1 * index);
+            networkIdentity.data.position.y = 1.25;
+            networkIdentity.data.position.z = 8;
+
 
             player.networkId = networkIdentity.id;
 
@@ -130,6 +145,8 @@ export class GameHandler {
                 scripts: { networkIdentity: { syncInterval: networkIdentity.syncInterval, id: networkIdentity.id, ownerId: player.presence.userId } },
                 username: player.presence.username,
             });
+
+            index++;
         }
 
         this.createEntities(dispatcher, entitiesToCreate);
@@ -140,7 +157,7 @@ export class GameHandler {
     }
 
     public static createEntities(dispatcher: nkruntime.MatchDispatcher, entities: { templateId: number; scripts: { [name: string]: any }; username: string; }[]) {
-        dispatcher.broadcastMessage(SERVER_MESSAGES.CREATE_ENTITIES, JSON.stringify(entities), null, null, true);
+        dispatcher.broadcastMessage(SERVER_MESSAGES.DEMO_CREATE_ENTITIES, JSON.stringify(entities), null, null, true);
     }
 
     public static handleNetworkIdentitiesChanges(networkIdentities: NetworkIdentity[]): NetworkIdentity[] {
@@ -160,26 +177,18 @@ export class GameHandler {
         return networkIdentitiesChanges;
     }
 
-    private static initializeLevel(nk: nkruntime.Nakama, levelId: string): [{ [key: string]: any }, NetworkIdentity[]] {
-        let rawLevel = this.loadLevel(nk, levelId);
-        return this.initializeNetworkIdentities(rawLevel);
-    }
-
-    private static loadLevel(nk: nkruntime.Nakama, levelId: string): {} {
-        return nk.storageRead([{ collection: 'levels', key: levelId, userId: SYSTEM_USER_ID }])[0]?.value;
-    }
-
-    private static initializeNetworkIdentities(level: { [key: string]: any }): [{}, NetworkIdentity[]] {
+    private static initializeLevel(nk: nkruntime.Nakama): [{ [key: string]: any }, NetworkIdentity[]] {
+        let rawLevel = nk.storageRead([{ collection: 'levels', key: this.LEVEL_ID, userId: SYSTEM_USER_ID }])[0]?.value;
         let networkIdentities: NetworkIdentity[] = [];
 
-        for (let guid in level.entities) {
-            if (level.entities[guid].components.script?.order.includes('networkIdentity')) {
-                level.entities[guid].components.script.scripts.networkIdentity.attributes.networkId = this.lastNetworkId++;
-                const attributes = level.entities[guid].components.script.scripts.networkIdentity.attributes;
+        for (let guid in rawLevel.entities) {
+            if (rawLevel.entities[guid].components.script?.order.includes('networkIdentity')) {
+                rawLevel.entities[guid].components.script.scripts.networkIdentity.attributes.networkId = this.lastNetworkId++;
+                const attributes = rawLevel.entities[guid].components.script.scripts.networkIdentity.attributes;
                 networkIdentities.push(new NetworkIdentity(attributes.id, attributes.syncInterval));
             }
         }
 
-        return [level, networkIdentities];
+        return [rawLevel, networkIdentities];
     }
 }

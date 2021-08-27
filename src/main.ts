@@ -1,5 +1,6 @@
 import * as Lobby from './matches/lobby-match/lobby';
 import * as Game from './matches/game-match/game';
+import * as Demo from './matches/demo-match/demo';
 
 import { rpcCreateMatch } from './rpcs/match-service';
 import { rpcLobbyInvite } from './rpcs/lobby-service';
@@ -27,6 +28,15 @@ let InitModule: nkruntime.InitModule = function (
         matchLeave: Game.leave,
         matchLoop: Game.loop,
         matchTerminate: Game.terminate,
+    });
+
+    initializer.registerMatch('demo', {
+        matchInit: Demo.init,
+        matchJoinAttempt: Demo.joinAttempt,
+        matchJoin: Demo.join,
+        matchLeave: Demo.leave,
+        matchLoop: Demo.loop,
+        matchTerminate: Demo.terminate,
     });
 
     initializer.registerRpc('createMatch', rpcCreateMatch);

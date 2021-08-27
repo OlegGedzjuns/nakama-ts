@@ -129,7 +129,7 @@ export class LobbyHandler {
         return data.state;
     }
 
-    public static startGame(data: ClientActionParams): nkruntime.MatchState {
+    public static startGame(data: ClientActionParams, matchType: string): nkruntime.MatchState {
         if (data.message.sender.userId != data.state.ownerId)
             return data.state;
 
@@ -140,9 +140,9 @@ export class LobbyHandler {
 
         messageObject.expectedPlayers = data.state.players.filter((p: Player | null) => !!p).length;
 
-        data.state.gameId = data.nk.matchCreate(MATCH_TYPES.GAME, messageObject);
+        data.state.gameId = data.nk.matchCreate(matchType, messageObject);
 
-        data.dispatcher.broadcastMessage(SERVER_MESSAGES.LOBBY_GAME_STARTED, JSON.stringify({ gameId: data.state.gameId }), null, null, true);
+        data.dispatcher.broadcastMessage(SERVER_MESSAGES.LOBBY_GAME_STARTED, JSON.stringify({ gameId: data.state.gameId, matchType }), null, null, true);
 
         return data.state;
     }

@@ -1,8 +1,6 @@
 import HTMLCanvasElement from 'webgl-mock-threejs/src/HTMLCanvasElement';
 
-import * as pc from '../../libs/playcanvas';
-
-import { create as createExample } from '../../playsandbox/scripts/components/example';
+import * as pc from '../libs/playcanvas';
 
 export class AppHandler {
     private static initializerApp: pc.Application | null = null;
@@ -22,7 +20,5 @@ export class AppHandler {
             return;
 
         this.initializerApp = new pc.Application(new HTMLCanvasElement(), {});
-        
-        createExample(this.initializerApp, logger);
     }
 }
